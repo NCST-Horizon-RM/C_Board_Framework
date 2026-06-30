@@ -1,0 +1,13 @@
+build/
+C_Framework.jdebug
+C_Framework.jdebug.user
+C_GDB.jdebug
+C_GDB.jdebug.user
+.settings/
+.idea/
+.vscode/
+.clangd/
+.ideagit rm -r --cached .
+mx.scratch
+F4一键启动OpenOCD.bat
+start_daplink.sh
