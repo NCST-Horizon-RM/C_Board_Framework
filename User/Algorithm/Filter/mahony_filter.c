@@ -168,9 +168,9 @@ void mahony_output(struct MAHONY_FILTER_t *f) {
     float sqrt_val;
     arm_sqrt_f32(1.0f - r20 * r20, &sqrt_val);
     //使用CORDIC优化计算
-    f->pitch = -ARM_Atan2_Fast(r20, sqrt_val);
-    f->roll  = ARM_Atan2_Fast(f->rMat[2][1], f->rMat[2][2]);
-    f->yaw   = ARM_Atan2_Fast(f->rMat[1][0], f->rMat[0][0]);
+    f->pitch = -ARM_Atan2_Fast(r20, sqrt_val)*RAD2DEG;
+    f->roll  = ARM_Atan2_Fast(f->rMat[2][1], f->rMat[2][2])*RAD2DEG;
+    f->yaw   = ARM_Atan2_Fast(f->rMat[1][0], f->rMat[0][0])*RAD2DEG;
 
     float yaw_diff = f->yaw - f->last_yaw;
     if (yaw_diff > 180.0f) {

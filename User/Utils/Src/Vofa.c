@@ -34,8 +34,8 @@ void VOFA_JustFloat(uint8_t channels_num, ...)
     send_buf[tail_index + 2] = 0x80;
     send_buf[tail_index + 3] = 0x7F;
 
-    //HAL_UART_Transmit_DMA(&huart1,send_buf,tail_index + 4);
-    CDC_Transmit_FS(send_buf, tail_index + 4);
+    HAL_UART_Transmit_DMA(&huart1,send_buf,tail_index + 4);
+    //CDC_Transmit_FS(send_buf, tail_index + 4);
 }
 
 /**
@@ -68,6 +68,6 @@ void VOFA_FireWater(uint8_t channels_num, ...)
     text_buf[str_len++] = '\n';
     text_buf[str_len]   = '\0';
 
-    //HAL_UART_Transmit_DMA(&huart1,(uint8_t*)text_buf, str_len);
-    CDC_Transmit_FS((uint8_t*)text_buf, str_len);
+    HAL_UART_Transmit_DMA(&huart1,(uint8_t*)text_buf, str_len);
+    //CDC_Transmit_FS((uint8_t*)text_buf, str_len);
 }

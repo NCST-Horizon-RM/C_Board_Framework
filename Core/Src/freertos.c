@@ -47,12 +47,26 @@
 /* USER CODE BEGIN Variables */
 
 /* USER CODE END Variables */
-/* Definitions for defaultTask */
-osThreadId_t defaultTaskHandle;
-const osThreadAttr_t defaultTask_attributes = {
-  .name = "defaultTask",
+/* Definitions for IMU */
+osThreadId_t IMUHandle;
+const osThreadAttr_t IMU_attributes = {
+  .name = "IMU",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityRealtime,
+};
+/* Definitions for Motor */
+osThreadId_t MotorHandle;
+const osThreadAttr_t Motor_attributes = {
+  .name = "Motor",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityHigh3,
+};
+/* Definitions for Command */
+osThreadId_t CommandHandle;
+const osThreadAttr_t Command_attributes = {
+  .name = "Command",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityHigh1,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -60,7 +74,9 @@ const osThreadAttr_t defaultTask_attributes = {
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void *argument);
+void IMU_Task(void *argument);
+void Motor_Task(void *argument);
+void Command_Task(void *argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -92,8 +108,14 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  /* creation of IMU */
+  IMUHandle = osThreadNew(IMU_Task, NULL, &IMU_attributes);
+
+  /* creation of Motor */
+  MotorHandle = osThreadNew(Motor_Task, NULL, &Motor_attributes);
+
+  /* creation of Command */
+  CommandHandle = osThreadNew(Command_Task, NULL, &Command_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -105,24 +127,60 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_StartDefaultTask */
+/* USER CODE BEGIN Header_IMU_Task */
 /**
-  * @brief  Function implementing the defaultTask thread.
+  * @brief  Function implementing the IMU thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument)
+/* USER CODE END Header_IMU_Task */
+__weak void IMU_Task(void *argument)
 {
   /* init code for USB_DEVICE */
   MX_USB_DEVICE_Init();
-  /* USER CODE BEGIN StartDefaultTask */
+  /* USER CODE BEGIN IMU_Task */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END StartDefaultTask */
+  /* USER CODE END IMU_Task */
+}
+
+/* USER CODE BEGIN Header_Motor_Task */
+/**
+* @brief Function implementing the Motor thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_Motor_Task */
+__weak void Motor_Task(void *argument)
+{
+  /* USER CODE BEGIN Motor_Task */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END Motor_Task */
+}
+
+/* USER CODE BEGIN Header_Command_Task */
+/**
+* @brief Function implementing the Command thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_Command_Task */
+__weak void Command_Task(void *argument)
+{
+  /* USER CODE BEGIN Command_Task */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END Command_Task */
 }
 
 /* Private application code --------------------------------------------------*/

@@ -29,8 +29,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "All_Task.h"
-#include "System_Init.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,7 +41,8 @@
 /* USER CODE BEGIN PD */
 
 /* USER CODE END PD */
-
+extern void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
+extern void System_Init(void);
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
@@ -180,7 +180,7 @@ void SystemClock_Config(void)
 
 /**
   * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM14 interrupt took place, inside
+  * @note   This function is called  when TIM12 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
   * a global variable "uwTick" used as application time base.
   * @param  htim : TIM handle
@@ -191,7 +191,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM14)
+  if (htim->Instance == TIM12)
   {
     HAL_IncTick();
   }
