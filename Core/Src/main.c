@@ -39,10 +39,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-/* USER CODE END PD */
 extern void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 extern void System_Init(void);
+/* USER CODE END PD */
+
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
@@ -83,7 +83,8 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));
+  __DSB(); __ISB();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -106,6 +107,7 @@ int main(void)
   MX_TIM10_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  MX_USB_DEVICE_Init();
   System_Init();
   /* USER CODE END 2 */
 

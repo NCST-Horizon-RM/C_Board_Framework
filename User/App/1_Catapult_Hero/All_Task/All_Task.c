@@ -9,7 +9,7 @@
 #include "Robot_Cmd.h"
 #include "System_State.h"
 #include "System_Indicator.h"
-#include "Vofa.h"
+#include "../../../Device/Host_Comm/Vofa.h"
 //指令中心任务 200Hz
 void Command_Task(void *argument)
 {
@@ -27,7 +27,7 @@ void Command_Task(void *argument)
     }
 }
 
-DWT_Profiler_t IMU_TIME;
+DWT_Profiler_t ins_time;
 //IMU姿态解算任务 1000Hz
 void IMU_Task(void *argument)
 {
@@ -43,15 +43,9 @@ void IMU_Task(void *argument)
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
 
         imu_period_s = DWT_GetDeltaT(&INS_DWT_Count);
-        DWT_Profile_Start(&IMU_TIME);
+        DWT_Profile_Start(&ins_time);
         IMU_Update_Task(&IMU_Data,imu_period_s);
-        DWT_Profile_Stop(&IMU_TIME);
-        VOFA_JustFloat(6,
-IMU_Data.pitch,
-IMU_Data.roll,
-IMU_Data.yaw,
-IMU_Data.YawTotalAngle,
-IMU_Data.temp,imu_period_s);
+        DWT_Profile_Stop(&ins_time);
     }
 }
 
@@ -83,7 +77,10 @@ void Motor_Task(void *argument)
         if (c_motor_sub) SubGetMessage(c_motor_sub, &chassis_m);
         if (g_motor_sub) SubGetMessage(g_motor_sub, &gimbal_m);
         if (s_motor_sub)  SubGetMessage(s_motor_sub, &shoot_m);
-
+        VOFA_JustFloat(NULL, 12, imu.pitch, imu.roll,imu.yaw,imu.temp,
+            imu.accel[0],imu.accel[1],imu.accel[2],
+            imu.gyro[0],imu.gyro[1],imu.gyro[2],
+            ins_time.cost_us);
     }
 }
 

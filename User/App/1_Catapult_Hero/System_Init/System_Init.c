@@ -41,7 +41,7 @@ void System_Init() {
     BSP_PWM_Start(&imu_heater_pwm);
     //BSP_PWM_Start(&ws2812_pwm);
     //BMI088初始化
-    //BMI088_init();
+    BMI088_init();
     //系统状态监测初始化
     System_Indicator_Init();
     System_State_Init();

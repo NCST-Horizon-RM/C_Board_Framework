@@ -11,7 +11,7 @@
 /// 圆周率
 #define PI 3.14159265358979f
 /// 角度转弧度
-#define DEG2RAD (PI / 180.0f)
+#define DEG2RAD 0.017453292519943295769236907684886f
 /// 弧度转角度
 #define RAD2DEG (180.0f / PI)
 

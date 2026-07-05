@@ -1,4 +1,6 @@
 #include "BMI088Middleware.h"
+
+#include "BSP_DWT.h"
 #include "main.h"
 
 #define BMI088_USING_SPI_UNIT   hspi1
@@ -55,35 +57,7 @@ void BMI088_delay_ms(uint16_t ms)
 **/
 void BMI088_delay_us(uint16_t us)
 {
-
-    uint32_t ticks = 0;
-    uint32_t told = 0;
-    uint32_t tnow = 0;
-    uint32_t tcnt = 0;
-    uint32_t reload = 0;
-    reload = SysTick->LOAD;
-    ticks = us * 550;
-    told = SysTick->VAL;
-    while (1)
-    {
-        tnow = SysTick->VAL;
-        if (tnow != told)
-        {
-            if (tnow < told)
-            {
-                tcnt += told - tnow;
-            }
-            else
-            {
-                tcnt += reload - tnow + told;
-            }
-            told = tnow;
-            if (tcnt >= ticks)
-            {
-                break;
-            }
-        }
-    }
+    DWT_Delay_us(us);
 }
 /**
 ************************************************************************
