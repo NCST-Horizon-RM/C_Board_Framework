@@ -7,11 +7,9 @@
  */
 #include "stm32f4xx_hal.h"
 #include "DBUS.h"
-#include "All_define.h"
 #include "Horizon_MATH.h"
 
-
-uint8_t DBUS_RX_DATA[18]__attribute__((section(".RAM_D2")));
+uint8_t DBUS_RX_DATA[18];
 DBUS_Typedef DBUS = { 0 };
 
 static float DBUS_OneFilter(float last, float now, float thresholdValue);

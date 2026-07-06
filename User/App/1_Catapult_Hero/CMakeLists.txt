@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
 
-# 1. 搜集当前 App 目录下的所有源文件
+# 搜集当前 App 目录下的所有源文件
 file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS "*.c" "*.cpp" "*.s")
 add_library(App_Module STATIC ${APP_SOURCES})
 
-# 2. 自动递归搜集并包含当前 App 目录下的所有头文件路径
+# 自动递归搜集并包含当前 App 目录下的所有头文件路径
 file(GLOB_RECURSE APP_H_FILES CONFIGURE_DEPENDS "*.h" "*.hpp")
 set(APP_INCLUDE_DIRS "")
 foreach(FILE_PATH ${APP_H_FILES})
@@ -32,24 +32,28 @@ target_compile_options(App_Module PRIVATE
         $<$<CONFIG:Release>:-O3 -g3 -funroll-loops>
 )
 
-# 4. 🔥 核心修复：显式注入生成配置宏，让 IMU_Task.c 能识别状态机切换
+# 显式注入生成配置宏
 target_compile_definitions(App_Module PRIVATE
-        STM32H723xx
+        STM32F407xx
         USE_HAL_DRIVER
-        ARM_MATH_CM7
+        ARM_MATH_CM4
         __FPU_PRESENT=1U
         $<$<CONFIG:Debug>:DEBUG_MODE>
         $<$<CONFIG:Release>:RELEASE_MODE>
 )
 
-# 5. 链接底层的 stm32cubemx 驱动库
+# 链接底层的 stm32cubemx 驱动库
 target_link_libraries(App_Module PRIVATE stm32cubemx)
 
-# 6. 获取并包含主项目（Core、Drivers等）的头文件路径
+# 获取并包含主项目（Core、Drivers等）的头文件路径
 get_target_property(FW_INCLUDES ${CMAKE_PROJECT_NAME} INCLUDE_DIRECTORIES)
 if(FW_INCLUDES)
     target_include_directories(App_Module PRIVATE ${FW_INCLUDES})
 endif()
 
-# 7. 将编译好的子模块库静态链接回主项目的可执行文件中
-target_link_libraries(${CMAKE_PROJECT_NAME} App_Module)
+# 将编译好的子模块库静态链接回主项目的可执行文件中
+target_link_libraries(${CMAKE_PROJECT_NAME}
+        -Wl,--whole-archive
+        App_Module
+        -Wl,--no-whole-archive
+)

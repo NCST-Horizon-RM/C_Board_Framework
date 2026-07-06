@@ -35,12 +35,10 @@ void System_Init() {
     //蜂鸣器初始化
     Buzzer_Init();
     //TODO 这里不该出现HAL库代码的，偷个懒后面再改
-
     HAL_TIM_Base_Start_IT(&htim3);
     //PWM设备初始化
-    //BSP_PWM_Start(&buzzer_pwm);
+    BSP_PWM_Start(&buzzer_pwm);
     BSP_PWM_Start(&imu_heater_pwm);
-    //BSP_PWM_Start(&ws2812_pwm);
     //BMI088初始化
     BMI088_Init();
     //系统状态监测初始化

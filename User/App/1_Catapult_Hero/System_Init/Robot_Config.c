@@ -17,3 +17,30 @@ Gimbal_Motor_Group_t  gimbal_motors;
 Shoot_Motor_Group_t   shoot_motors;
 
 BSP_PWM_t trigger_pwm = {&htim4, TIM_CHANNEL_2, PWM_CHANNEL_NORMAL};
+
+UART_RX_NODE(&huart3, 18, DBUS_RX_DATA, NULL, 18, &DBUS, DBUS_Resolved);
+OFFLINE_NODE(&DBUS.offline, DBUS_OFFLINE_TIME, GROUP_NONE);
+
+CAN_RX_NODE(CAN1, 0x201, &chassis_motors.DJI_3508_Chassis[0], DJI_Motor_Resolve);
+OFFLINE_NODE(&chassis_motors.DJI_3508_Chassis[0].offline, MOTOR_OFFLINE_TIME, CHASSIS);
+
+CAN_RX_NODE(CAN1, 0x202, &chassis_motors.DJI_3508_Chassis[1], DJI_Motor_Resolve);
+OFFLINE_NODE(&chassis_motors.DJI_3508_Chassis[1].offline, MOTOR_OFFLINE_TIME, CHASSIS);
+
+CAN_RX_NODE(CAN1, 0x203, &chassis_motors.DJI_3508_Chassis[2], DJI_Motor_Resolve);
+OFFLINE_NODE(&chassis_motors.DJI_3508_Chassis[2].offline, MOTOR_OFFLINE_TIME, CHASSIS);
+
+CAN_RX_NODE(CAN1, 0x204, &chassis_motors.DJI_3508_Chassis[3], DJI_Motor_Resolve);
+OFFLINE_NODE(&chassis_motors.DJI_3508_Chassis[3].offline, MOTOR_OFFLINE_TIME, CHASSIS);
+
+CAN_RX_NODE(CAN2, 0x205, &chassis_motors.DJI_6020_Steer[0], DJI_Motor_Resolve);
+OFFLINE_NODE(&chassis_motors.DJI_6020_Steer[0].offline, MOTOR_OFFLINE_TIME, CHASSIS);
+
+CAN_RX_NODE(CAN2, 0x206, &chassis_motors.DJI_6020_Steer[1], DJI_Motor_Resolve);
+OFFLINE_NODE(&chassis_motors.DJI_6020_Steer[1].offline, MOTOR_OFFLINE_TIME, CHASSIS);
+
+CAN_RX_NODE(CAN2, 0x207, &chassis_motors.DJI_6020_Steer[2], DJI_Motor_Resolve);
+OFFLINE_NODE(&chassis_motors.DJI_6020_Steer[2].offline, MOTOR_OFFLINE_TIME, CHASSIS);
+
+CAN_RX_NODE(CAN2, 0x208, &chassis_motors.DJI_6020_Steer[3], DJI_Motor_Resolve);
+OFFLINE_NODE(&chassis_motors.DJI_6020_Steer[3].offline, MOTOR_OFFLINE_TIME, CHASSIS);

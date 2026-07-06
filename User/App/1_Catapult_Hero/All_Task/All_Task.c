@@ -6,11 +6,15 @@
 #include "BSP_SPI.h"
 #include "Robot_Config.h"
 #include "Buzzer.h"
+#include "Chassis_Ctrl.h"
 #include "DBUS.h"
 #include "Message_Center.h"
+#include "Power_CAP.h"
+#include "Referee.h"
 #include "Robot_Cmd.h"
 #include "System_State.h"
 #include "System_Indicator.h"
+#include "VT13.h"
 #include "../../../Device/Host_Comm/Vofa.h"
 //指令中心任务 200Hz
 void Command_Task(void *argument)
@@ -18,6 +22,15 @@ void Command_Task(void *argument)
     (void)argument;
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xTimeIncrement = pdMS_TO_TICKS(5);//绝对延时5ms
+    PubRegister("dbus_data",  &DBUS,      sizeof(DBUS));
+    PubRegister("vt13_data",  &VT13,      sizeof(VT13));
+    PubRegister("referee_data",  &Referee,      sizeof(Referee_Data_t));
+    PubRegister("imu_data",   &IMU_Data,  sizeof(IMU_Data));
+    PubRegister("cap_data",   &cap,  sizeof(cap));
+
+    PubRegister("chassis_motors", &chassis_motors, sizeof(Chassis_Motor_Group_t));
+    PubRegister("gimbal_motors",  &gimbal_motors,  sizeof(Gimbal_Motor_Group_t));
+    PubRegister("shoot_motors",   &shoot_motors,   sizeof(Shoot_Motor_Group_t));
 
     Robot_Cmd_Init();
     for(;;)
@@ -25,31 +38,9 @@ void Command_Task(void *argument)
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
 
         Robot_Cmd_Update();
-
     }
 }
 
-/*DWT_Profiler_t ins_time;
-//IMU姿态解算任务 1000Hz
-void IMU_Task(void *argument)
-{
-    (void)argument;
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t xTimeIncrement = pdMS_TO_TICKS(1);//绝对延时1ms
-
-    static uint32_t INS_DWT_Count = 0; // DWT计数基准
-    static float imu_period_s = 0.0f;
-    INS_DWT_Count = DWT->CYCCNT;
-    for(;;)
-    {
-        vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
-
-        imu_period_s = DWT_GetDeltaT(&INS_DWT_Count);
-        DWT_Profile_Start(&ins_time);
-        IMU_Update_Task(&IMU_Data,imu_period_s);
-        DWT_Profile_Stop(&ins_time);
-    }
-}*/
 static TaskHandle_t xIMUTaskHandle = NULL;
 
 static void IMU_Interrupt_Handler(void) {
@@ -100,6 +91,7 @@ void Motor_Task(void *argument)
     c_motor_sub = SubRegister("chassis_motors", sizeof(Chassis_Motor_Group_t));
     g_motor_sub = SubRegister("gimbal_motors", sizeof(Gimbal_Motor_Group_t));
     s_motor_sub = SubRegister("shoot_motors", sizeof(Shoot_Motor_Group_t));
+    Chassis_Control_Init();
     for(;;)
     {
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
@@ -108,10 +100,12 @@ void Motor_Task(void *argument)
         if (c_motor_sub) SubGetMessage(c_motor_sub, &chassis_m);
         if (g_motor_sub) SubGetMessage(g_motor_sub, &gimbal_m);
         if (s_motor_sub)  SubGetMessage(s_motor_sub, &shoot_m);
-        VOFA_JustFloat(NULL, 12, IMU_Data.pitch, IMU_Data.roll,imu.yaw,IMU_Data.temp,
+
+        Chassis_Control_Task(&chassis_m,&imu);
+        VOFA_JustFloat(NULL, 13, IMU_Data.pitch, IMU_Data.roll,imu.yaw,IMU_Data.temp,
             IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2],
             IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],
-            ins_time.cost_us);
+            ins_time.cost_us,imu_period_s);
     }
 }
 

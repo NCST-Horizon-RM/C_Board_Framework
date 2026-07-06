@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/1/5.
 //
 
-#ifndef F4_FRAMEWORK_BSP_FDCAN_H
-#define F4_FRAMEWORK_BSP_FDCAN_H
+#ifndef F4_FRAMEWORK_BSP_CAN_H
+#define F4_FRAMEWORK_BSP_CAN_H
 
 #include "can.h"
 
@@ -18,7 +18,6 @@ typedef struct
 
 extern CAN_Stats_t can1_stats;
 extern CAN_Stats_t can2_stats;
-extern CAN_Stats_t can3_stats;
 
 typedef CAN_HandleTypeDef hcan_t;
 
@@ -61,4 +60,4 @@ void BSP_CAN_Auto_Init(void); // 替代原来的 Auto_CAN_Router_Init
 void CAN_Config(hcan_t *hcan, uint32_t fifo);
 extern uint8_t CAN_Send_Msg(hcan_t *hcan, uint32_t id, uint8_t *data, uint32_t len);
 
-#endif //F4_FRAMEWORK_BSP_FDCAN_H
+#endif //F4_FRAMEWORK_BSP_CAN_H

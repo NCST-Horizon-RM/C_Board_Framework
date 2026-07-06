@@ -114,6 +114,30 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
+  .custom_registry :
+  {
+    . = ALIGN(4);
+
+    /* UART 自动注册段 */
+    PROVIDE(__start_UART_Reg_Sec = .);
+    KEEP(*(UART_Reg_Sec))
+    PROVIDE(__stop_UART_Reg_Sec = .);
+    . = ALIGN(4);
+
+    /* CAN 自动注册段（请对照你宏定义里的 section 名字修改） */
+    PROVIDE(__start_CAN_Reg_Sec = .);
+    KEEP(*(CAN_Reg_Sec))
+    PROVIDE(__stop_CAN_Reg_Sec = .);
+    . = ALIGN(4);
+
+    /* 离线检测自动注册段 */
+    PROVIDE(__start_Offline_Reg_Sec = .);
+    KEEP(*(Offline_Reg_Sec))
+    PROVIDE(__stop_Offline_Reg_Sec = .);
+    . = ALIGN(4);
+
+  } >FLASH
+
   .ARM.extab (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
     . = ALIGN(4);

@@ -149,7 +149,7 @@ void Swerve_Inverse_Calc(Swerve_Command_t *cmd, Swerve_State_t *state,
         }
 
         state->wheel[i].theta_target = normalize_to_pi(current_theta_chassis + diff);
-        state->wheel[i].v_wheel_target = speed_dir * v_mag;
+        state->wheel[i].v_wheel_target = speed_dir * v_mag * cosf(diff);
 
         cmd->target_steer_angle_rad[i] = current_theta_motor + diff;
         cmd->target_wheel_rpm[i] = (state->wheel[i].v_wheel_target / state->cfg.r) * state->cfg.gear_d / RPM_TO_RADS;
@@ -159,7 +159,7 @@ void Swerve_Inverse_Calc(Swerve_Command_t *cmd, Swerve_State_t *state,
         float F_iy = (state->cfg.m * ay + state->cfg.J * aw / state->cfg.R * sinf(state->cfg.phi[i])) / 4.0f;
         float F_drive = F_ix * cosf(current_theta_chassis) + F_iy * sinf(current_theta_chassis);
 
-        state->wheel[i].ff_out = speed_dir * (F_drive * state->cfg.r) * M3508_NM_TO_RAW;
+        state->wheel[i].ff_out = (F_drive * state->cfg.r) * M3508_NM_TO_RAW;
 
         cmd->ff_torque_raw[i] = state->wheel[i].ff_out;
     }

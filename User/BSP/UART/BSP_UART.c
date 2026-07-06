@@ -18,9 +18,8 @@ void Auto_UART_Router_Init(void)
     }
 }
 
-#define MAX_UART_BUS_NUM  11 // H723最大支持到 UART10 (索引使用10)
+#define MAX_UART_BUS_NUM  7
 
-// 驱动内部私有的路由槽位映射表，完全由 BSP 层自己维护
 static BSP_UART_Slot_t BSP_UART_Table[MAX_UART_BUS_NUM] = {0};
 static uint8_t g_uart_registered_mask[MAX_UART_BUS_NUM] = {0}; // 注册标记掩码
 
@@ -72,29 +71,25 @@ void BSP_UART_Register_Slot(UART_HandleTypeDef *huart,
  * @return HAL_StatusTypeDef: HAL_OK 启动成功, HAL_ERROR 配置错误或句柄为空
  */
 HAL_StatusTypeDef UART_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size) {
-    // 防止传入空指针导致 HardFault
     if (huart == NULL || pData == NULL || Size == 0) {
         return HAL_ERROR;
     }
-    // 检查 DMA 句柄是否配置：防止 CubeMX 没开 DMA 导致死机
     if (huart->hdmarx == NULL) {
         return HAL_ERROR;
     }
-    // 彻底清除硬件错误标志
-    // __HAL_UART_CLEAR_FLAG(huart, UART_CLEAR_OREF | UART_CLEAR_FEF | UART_CLEAR_NEF | UART_CLEAR_PEF);
-    __HAL_UART_CLEAR_FLAG(huart, USART_SR_ORE | USART_SR_FE);
-    // // 通过 RQR 寄存器请求丢弃当前接收行为
-    // huart->Instance->RQR |= USART_RQR_RXFRQ;
-    // 向 SR 寄存器的 RXNE 位写 0 清除
-    huart->Instance->SR &= ~USART_SR_RXNE;
-    // 读出 RDR 缓存
+    // 清除各种错误标志位
+    __HAL_UART_CLEAR_PEFLAG(huart);
+    __HAL_UART_CLEAR_FEFLAG(huart);
+    __HAL_UART_CLEAR_NEFLAG(huart);
+    __HAL_UART_CLEAR_OREFLAG(huart);
+    // 读取一次 DR 确保清理 RXNE 标志和残留数据
     volatile uint32_t tmp = huart->Instance->DR;
     (void)tmp;
     // 重新启动 DMA 接收
     if (HAL_UARTEx_ReceiveToIdle_DMA(huart, pData, Size) != HAL_OK) {
         return HAL_ERROR;
     }
-    // 关闭 DMA 半传输中断（HAL 库启动后默认会开启，这里必须关闭）
+    // 关闭 DMA 半传输中断
     __HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT);
     return HAL_OK;
 }
