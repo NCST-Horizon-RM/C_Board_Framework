@@ -5,10 +5,10 @@
  * @date       2026/2/11
  * @version    V1.0
  * @note       核心特性：
- *             1. 基于四元数的互补滤波，避免欧拉角万向锁问题
- *             2. 陀螺仪零偏自学习（静态时自动校准）
- *             3. 积分限幅防止姿态发散，偏航角低通平滑
- *             4. 快速逆平方根优化计算效率
+ * 1. 基于四元数的互补滤波，避免欧拉角万向锁问题
+ * 2. 陀螺仪零偏自学习（静态时自动校准）
+ * 3. 积分限幅防止姿态发散，偏航角低通平滑
+ * 4. 快速逆平方根优化计算效率
  */
 #include "mahony_filter.h"
 #include "arm_math.h"
@@ -34,7 +34,7 @@ static float32_t arm_invSqrt(float32_t x) {
  */
 void RotationMatrix_update(struct MAHONY_FILTER_t *f)
 {
-    float32_t q0 = f->q0, q1 = f->q1, q2 = f->q2, q3 = f->q3;
+    float32_t q0 = f->q[0], q1 = f->q[1], q2 = f->q[2], q3 = f->q[3];
 
     // 提前计算平方项，减少重复乘法
     float32_t q1q1 = q1 * q1;
@@ -141,15 +141,15 @@ void mahony_update(struct MAHONY_FILTER_t *f,
     }
 
     // 四元数积分更新 (Runge-Kutta 1阶)
-    float q0 = f->q0, q1 = f->q1, q2 = f->q2, q3 = f->q3;
-    f->q0 += (-q1 * gx - q2 * gy - q3 * gz) * halfT;
-    f->q1 += ( q0 * gx + q2 * gz - q3 * gy) * halfT;
-    f->q2 += ( q0 * gy - q1 * gz + q3 * gx) * halfT;
-    f->q3 += ( q0 * gz + q1 * gy - q2 * gx) * halfT;
+    float q0 = f->q[0], q1 = f->q[1], q2 = f->q[2], q3 = f->q[3];
+    f->q[0] += (-q1 * gx - q2 * gy - q3 * gz) * halfT;
+    f->q[1] += ( q0 * gx + q2 * gz - q3 * gy) * halfT;
+    f->q[2] += ( q0 * gy - q1 * gz + q3 * gx) * halfT;
+    f->q[3] += ( q0 * gz + q1 * gy - q2 * gx) * halfT;
 
     // 四元数归一化
-    float q_norm = arm_invSqrt(f->q0 * f->q0 + f->q1 * f->q1 + f->q2 * f->q2 + f->q3 * f->q3);
-    f->q0 *= q_norm; f->q1 *= q_norm; f->q2 *= q_norm; f->q3 *= q_norm;
+    float q_norm = arm_invSqrt(f->q[0] * f->q[0] + f->q[1] * f->q[1] + f->q[2] * f->q[2] + f->q[3] * f->q[3]);
+    f->q[0] *= q_norm; f->q[1] *= q_norm; f->q[2] *= q_norm; f->q[3] *= q_norm;
 
     // 更新旋转矩阵供下一周期计算及输出使用
     RotationMatrix_update(f);
@@ -161,31 +161,6 @@ void mahony_update(struct MAHONY_FILTER_t *f,
  * @return void
  */
 void mahony_output(struct MAHONY_FILTER_t *f) {
-    float r20 = f->rMat[2][0];
-    if (r20 > 1.0f) r20 = 1.0f;
-    if (r20 < -1.0f) r20 = -1.0f;
-
-    float sqrt_val;
-    arm_sqrt_f32(1.0f - r20 * r20, &sqrt_val);
-    //使用CORDIC优化计算
-    f->pitch = -ARM_Atan2_Fast(r20, sqrt_val)*RAD2DEG;
-    f->roll  = ARM_Atan2_Fast(f->rMat[2][1], f->rMat[2][2])*RAD2DEG;
-    f->yaw   = ARM_Atan2_Fast(f->rMat[1][0], f->rMat[0][0])*RAD2DEG;
-
-    float yaw_diff = f->yaw - f->last_yaw;
-    if (yaw_diff > 180.0f) {
-        yaw_diff -= 360.0f;
-        f->yaw_laps --;
-    }
-    else if (yaw_diff < -180.0f) {
-        yaw_diff += 360.0f;
-        f->yaw_laps ++;
-    }
-    f->YawTotalAngle += yaw_diff;
-    f->last_yaw = f->yaw;
-}
-
-/*void mahony_output(struct MAHONY_FILTER_t *f) {
 float r20 = f->rMat[2][0];
     if (r20 > 1.0f) r20 = 1.0f;
     if (r20 < -1.0f) r20 = -1.0f;
@@ -209,7 +184,8 @@ float r20 = f->rMat[2][0];
 
     f->YawTotalAngle += yaw_diff;
     f->last_yaw = f->yaw;
-}*/
+}
+
 /**
  * @brief Mahony滤波算法初始化函数
  * @param f 指向MAHONY_FILTER_t结构体的指针，待初始化的算法结构体
@@ -225,7 +201,7 @@ void mahony_init(struct MAHONY_FILTER_t *f, float Kp, float Ki, float alpha,floa
     f->alpha = alpha;
     f->dt = dt;
 
-    f->q0 = 1; f->q1 = 0; f->q2 = 0; f->q3 = 0;
+    f->q[0] = 1.0f; f->q[1] = 0.0f; f->q[2] = 0.0f; f->q[3] = 0.0f;
 
     f->acc_lpf.x = 0; f->acc_lpf.y = 0; f->acc_lpf.z = 0;
 

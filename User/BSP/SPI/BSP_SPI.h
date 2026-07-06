@@ -5,13 +5,20 @@
 #ifndef F4_FRAMEWORK_BSP_SPI_H
 #define F4_FRAMEWORK_BSP_SPI_H
 
-#include "stm32f4xx_hal.h"
+#include <stdint.h>
 
+typedef enum {
+    BSP_SPI_OK = 0,
+    BSP_SPI_ERROR
+} BSP_SPI_Status_t;
+
+// 提供给 BMI088 的片选控制接口
 void BSP_SPI_Accel_CS(uint8_t state);
 void BSP_SPI_Gyro_CS(uint8_t state);
 
-HAL_StatusTypeDef BSP_SPI_Transmit(const uint8_t *data, uint16_t size, uint32_t timeout);
-HAL_StatusTypeDef BSP_SPI_Receive(uint8_t *data, uint16_t size, uint32_t timeout);
-SPI_TypeDef *BSP_SPI_GetInstance(void);
+BSP_SPI_Status_t BSP_SPI_Transmit(const uint8_t *data, uint16_t size, uint32_t timeout);
+BSP_SPI_Status_t BSP_SPI_Receive(uint8_t *data, uint16_t size, uint32_t timeout);
+
+void BSP_SPI_RegisterIRQCallback(void (*callback)(void));
 
 #endif //F4_FRAMEWORK_BSP_SPI_H

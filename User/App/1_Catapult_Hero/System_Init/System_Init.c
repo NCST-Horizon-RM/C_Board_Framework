@@ -2,9 +2,10 @@
 // Created by CaoKangqi on 2026/2/13.
 //
 #include "System_Init.h"
+
+#include "BMI088.h"
 #include "BSP_DWT.h"
 #include "BSP_CAN.h"
-#include "BMI088driver.h"
 #include "BSP_TIM.h"
 #include "BSP_UART.h"
 #include "Buzzer.h"
@@ -41,7 +42,7 @@ void System_Init() {
     BSP_PWM_Start(&imu_heater_pwm);
     //BSP_PWM_Start(&ws2812_pwm);
     //BMI088初始化
-    BMI088_init();
+    BMI088_Init();
     //系统状态监测初始化
     System_Indicator_Init();
     System_State_Init();

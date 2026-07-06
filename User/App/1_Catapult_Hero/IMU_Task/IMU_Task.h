@@ -19,6 +19,13 @@ typedef enum
     ERROR_STATE      // 错误状态（如温控失败、校准异常等）
 } IMU_CTRL_STATE_e;
 
+typedef enum
+{
+    VQF = 0,    // VQF算法
+    MAHONY,     // Mahony算法
+    EKF         // EKF算法
+} IMU_Fusion_Algo_e;
+
 typedef struct
 {
     uint8_t temp_reached;      // 到达目标温度
@@ -54,4 +61,7 @@ void IMU_Temp_PID_Init(void);
 void IMU_Update_Task(IMU_Data_t *IMU,float dt_s);
 void IMU_Gyro_Zero_Calibration_Task(IMU_Data_t *IMU);
 void IMU_Status_Check(IMU_Data_t *IMU);
+
+void IMU_Fusion_Init(IMU_Fusion_Algo_e algo, float dt);
+void IMU_Fusion_Update(IMU_Data_t *IMU, float dt);
 #endif //G4_FRAMEWORK_IMU_TASK_H

@@ -1,5 +1,5 @@
 /**
- * @file mahony_filter.h
+* @file mahony_filter.h
  * @brief Mahony姿态滤波算法头文件
  * @author CaoKangqi
  * @date 2026/2/11
@@ -43,7 +43,7 @@ struct MAHONY_FILTER_t
 
     // 过程参数
     float exInt, eyInt, ezInt;  // 积分误差
-    float q0, q1, q2, q3;       // 四元数
+    float q[4];                 // 四元数 (q[0]~q[3])
     float rMat[3][3];           // 旋转矩阵
 
     // 输出参数
