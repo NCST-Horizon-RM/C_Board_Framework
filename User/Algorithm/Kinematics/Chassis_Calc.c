@@ -5,131 +5,57 @@
 #include <math.h>
 #include "All_define.h"
 #include "Horizon_MATH.h"
+#include "main.h"
 
-float theta_chassis;
-
-static float ClampFloat(float val, float min_val, float max_val)
+uint8_t Mecanum_Init(mecanumInit_typdef *mecanumInitT)
 {
-    if (val < min_val) return min_val;
-    if (val > max_val) return max_val;
-    return val;
-}
-
-static float AbsFloat(float val)
-{
-    return (val < 0.0f) ? -val : val;
-}
-
-uint8_t MecanumInit(mecanumInit_typdef *mecanumInitT)
-{
+    mecanumInitT->wheel_r    = 0.075f;
+    mecanumInitT->chassis_r= 0.25f;
+    mecanumInitT->phi[0]= 45 * DEG2RAD;
+    mecanumInitT->phi[1]= 135 * DEG2RAD;
+    mecanumInitT->phi[2]= -135 * DEG2RAD;
+    mecanumInitT->phi[3]= -45 * DEG2RAD;
     mecanumInitT->deceleration_ratio = 3591/187;
-    mecanumInitT->max_vw_speed       = 50000;
-    mecanumInitT->max_vx_speed       = 50000;
-    mecanumInitT->max_vy_speed       = 50000;
-    mecanumInitT->max_wheel_ramp     = 8000;
-    mecanumInitT->rotate_x_offset    = 00.0f;
-    mecanumInitT->rotate_y_offset    = 00.0f;
-    mecanumInitT->wheelbase          = 300;
-    mecanumInitT->wheeltrack         = 300;
-    mecanumInitT->wheel_perimeter    = 478;
-
-    mecanumInitT->raid_fr = ((mecanumInitT->wheelbase + mecanumInitT->wheeltrack) / 2.0f -
-                             mecanumInitT->rotate_x_offset + mecanumInitT->rotate_y_offset) / 57.3f;
-    mecanumInitT->raid_fl = ((mecanumInitT->wheelbase + mecanumInitT->wheeltrack) / 2.0f -
-                             mecanumInitT->rotate_x_offset - mecanumInitT->rotate_y_offset) / 57.3f;
-    mecanumInitT->raid_bl = ((mecanumInitT->wheelbase + mecanumInitT->wheeltrack) / 2.0f +
-                             mecanumInitT->rotate_x_offset - mecanumInitT->rotate_y_offset) / 57.3f;
-    mecanumInitT->raid_br = ((mecanumInitT->wheelbase + mecanumInitT->wheeltrack) / 2.0f +
-                             mecanumInitT->rotate_x_offset + mecanumInitT->rotate_y_offset) / 57.3f;
-
-    mecanumInitT->wheel_rpm_ratio = 60.0f / (mecanumInitT->wheel_perimeter * mecanumInitT->deceleration_ratio);
     return 0;
 }
 
-void MecanumResolve(float *wheel_rpm, float vx_temp, float vy_temp, float vr, mecanumInit_typdef *mecanumInit_t)
+void Mecanum_Calc(float *wheel_rpm, float vx, float vy, float vw, mecanumInit_typdef *mecanumInit_t)
 {
-    static float SLOW_START = 0.0f;
-    float MAX_POWER = 45.0f;
-
-    float vx = ClampFloat(vx_temp, -mecanumInit_t->max_vx_speed, mecanumInit_t->max_vx_speed);
-    float vy = ClampFloat(vy_temp, -mecanumInit_t->max_vy_speed, mecanumInit_t->max_vy_speed);
-    float vw = ClampFloat(vr, -mecanumInit_t->max_vw_speed, mecanumInit_t->max_vw_speed);
-
-    if(vx != 0 || vy != 0 || vw != 0)
-    {
-        SLOW_START += 0.002f;
-        float SLOW_START_MAX = CHASSIS_GET_MAX_TARGET(MAX_POWER);
-        if(SLOW_START > SLOW_START_MAX)
-        {
-            SLOW_START = SLOW_START_MAX;
-        }
-        vx *= ( 1 - MATH_Limit_float(3000, 0, MATH_ABS_float(theta_chassis)) / 3000.0f );
-        vy *= ( 1 - MATH_Limit_float(3000, 0, MATH_ABS_float(theta_chassis)) / 3000.0f );
-
-        vx *= SLOW_START;
-        vy *= SLOW_START;
-        vw *= SLOW_START;
-    }
-
-    wheel_rpm[0] = (-vx + vy + vw * mecanumInit_t->raid_fr) * mecanumInit_t->wheel_rpm_ratio;
-    wheel_rpm[1] = ( vx + vy + vw * mecanumInit_t->raid_fl) * mecanumInit_t->wheel_rpm_ratio;
-    wheel_rpm[2] = ( vx - vy + vw * mecanumInit_t->raid_bl) * mecanumInit_t->wheel_rpm_ratio;
-    wheel_rpm[3] = (-vx - vy + vw * mecanumInit_t->raid_br) * mecanumInit_t->wheel_rpm_ratio;
-
-    float max_abs = 0.0f;
-    for (uint8_t i = 0; i < 4; i++) {
-        float a = AbsFloat(wheel_rpm[i]);
-        if (a > max_abs) max_abs = a;
-    }
-    if (max_abs > (float)mecanumInit_t->max_wheel_ramp && max_abs > 0.0f) {
-        float rate = (float)mecanumInit_t->max_wheel_ramp / max_abs;
-        for (uint8_t i = 0; i < 4; i++) {
-            wheel_rpm[i] *= rate;
+    for (int i = 0; i < 4; i++) {
+        if (cosf(mecanumInit_t->phi[i]) == 0||sinf(mecanumInit_t->phi[i]) == 0 ) {
+            Error_Handler();
         }
     }
+    //TODO 不一定对
+    wheel_rpm[0] = (-vx + vy - vw * mecanumInit_t->chassis_r / cosf(mecanumInit_t->phi[0] - 45 * DEG2RAD)
+        * cosf(PI/4)) / mecanumInit_t->wheel_r * mecanumInit_t->deceleration_ratio;
+    wheel_rpm[1] = ( vx + vy + vw * mecanumInit_t->chassis_r / cosf(mecanumInit_t->phi[1] - 135 * DEG2RAD)
+        * cosf(PI/4)) / mecanumInit_t->wheel_r * mecanumInit_t->deceleration_ratio;
+    wheel_rpm[2] = ( vx - vy + vw * mecanumInit_t->chassis_r / cosf(mecanumInit_t->phi[2] - (-135) * DEG2RAD)
+        * cosf(PI/4)) / mecanumInit_t->wheel_r * mecanumInit_t->deceleration_ratio;
+    wheel_rpm[3] = (-vx - vy - vw * mecanumInit_t->chassis_r / cosf(mecanumInit_t->phi[3] - (-45) * DEG2RAD)
+        * cosf(PI/4)) / mecanumInit_t->wheel_r * mecanumInit_t->deceleration_ratio;
 }
 
-uint8_t OmniInit(OmniInit_typdef *OmniInitT)
+uint8_t Omni_Init(OmniInit_typdef *OmniInit_t)
 {
-    OmniInitT->wheel_perimeter = 155 * PI;
-    OmniInitT->CHASSIS_DECELE_RATIO = 3591/187;
-    OmniInitT->LENGTH_A = 180;
-    OmniInitT->LENGTH_B = 180;
-    OmniInitT->max_vx_speed = 50000;
-    OmniInitT->max_vy_speed = 50000;
-    OmniInitT->max_vw_speed = 50000;
-    OmniInitT->max_wheel_ramp = 8000;
-
-    OmniInitT->rotate_radius = (OmniInitT->LENGTH_A + OmniInitT->LENGTH_B) / 57.3f;
-    OmniInitT->wheel_rpm_ratio = 60.0f / (OmniInitT->wheel_perimeter) * OmniInitT->CHASSIS_DECELE_RATIO;
+    OmniInit_t->wheel_r    = 0.075f;
+    OmniInit_t->chassis_r= 0.25f;
+    OmniInit_t->phi[0]= 45 * DEG2RAD;
+    OmniInit_t->phi[1]= 135 * DEG2RAD;
+    OmniInit_t->phi[2]= -135 * DEG2RAD;
+    OmniInit_t->phi[3]= -45 * DEG2RAD;
+    OmniInit_t->deceleration_ratio = 3591/187;
     return 0;
 }
 
-void Omni_calc(float *wheel_rpm, float vx_temp, float vy_temp, float vr, OmniInit_typdef *OmniInit_t)
+void Omni_Calc(float *wheel_rpm, float vx, float vy, float vw, OmniInit_typdef *OmniInit_t)
 {
-    float vx = ClampFloat(vx_temp, -OmniInit_t->max_vx_speed, OmniInit_t->max_vx_speed);
-    float vy = ClampFloat(vy_temp, -OmniInit_t->max_vy_speed, OmniInit_t->max_vy_speed);
-    float vw = ClampFloat(vr, -OmniInit_t->max_vw_speed, OmniInit_t->max_vw_speed);
-    float rot = vw * OmniInit_t->rotate_radius;
-
-    wheel_rpm[0] = (  vx + vy + rot) * OmniInit_t->wheel_rpm_ratio;
-    wheel_rpm[1] = (  vx - vy + rot) * OmniInit_t->wheel_rpm_ratio;
-    wheel_rpm[2] = ( -vx - vy + rot) * OmniInit_t->wheel_rpm_ratio;
-    wheel_rpm[3] = ( -vx + vy + rot) * OmniInit_t->wheel_rpm_ratio;
-
-    float max_abs = 0.0f;
-    for (uint8_t i = 0; i < 4; i++) {
-        float a = AbsFloat(wheel_rpm[i]);
-        if (a > max_abs) max_abs = a;
-    }
-    if (max_abs > (float)OmniInit_t->max_wheel_ramp && max_abs > 0.0f) {
-        float rate = (float)OmniInit_t->max_wheel_ramp / max_abs;
-        for (uint8_t i = 0; i < 4; i++) {
-            wheel_rpm[i] *= rate;
-        }
+    for (int i = 0; i < 4; i++) {
+        wheel_rpm[i] = ( -vx * cosf(OmniInit_t->phi[0]) + vy * sinf(OmniInit_t->phi[0])
+                - vw * OmniInit_t->chassis_r) * OmniInit_t->deceleration_ratio / OmniInit_t->wheel_r;
     }
 }
-
 
 #define M3508_NM_TO_RAW ( (1.0f / (15.7647f * 0.0157f * 0.85f)) * (16384.0f / 20.0f) )
 
@@ -237,17 +163,4 @@ void Swerve_Inverse_Calc(Swerve_Command_t *cmd, Swerve_State_t *state,
 
         cmd->ff_torque_raw[i] = state->wheel[i].ff_out;
     }
-}
-
-float CHASSIS_GET_MAX_TARGET(float MAX_POWER)
-{
-    if (MAX_POWER == 45)       return 0.03f * MAX_POWER;
-    else if (MAX_POWER == 50 || MAX_POWER == 200) return 0.04f * MAX_POWER;
-    else if (MAX_POWER == 55)  return 0.06f * MAX_POWER;
-    else if (MAX_POWER == 60 || MAX_POWER == 75)  return 0.08f * MAX_POWER;
-    else if (MAX_POWER == 65)  return 0.1f * MAX_POWER;
-    else if (MAX_POWER == 70)  return 0.09f * MAX_POWER;
-    else if (MAX_POWER == 80)  return 0.07f * MAX_POWER;
-    else if (MAX_POWER == 90 || MAX_POWER == 100) return 0.065f * MAX_POWER;
-    else                       return 0.1f * MAX_POWER;
 }
