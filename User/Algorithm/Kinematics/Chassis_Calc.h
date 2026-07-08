@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/2/23.
 //
 
-#ifndef G4_FRAMEWORK_CHASSIS_CALC_H
-#define G4_FRAMEWORK_CHASSIS_CALC_H
+#ifndef F4_FRAMEWORK_CHASSIS_CALC_H
+#define F4_FRAMEWORK_CHASSIS_CALC_H
 #include <stdint.h>
 
 typedef struct
@@ -55,7 +55,7 @@ typedef struct {
 typedef struct {
     Swerve_Cfg_t cfg;
 
-    // 底盘核心速度状态
+    // 底盘速度状态
     float vx;              // 底盘x轴实际速度 (m/s)
     float vy;              // 底盘y轴实际速度 (m/s)
     float vw;              // 底盘实际角速度 (rad/s)
@@ -95,4 +95,4 @@ void Swerve_Inverse_Calc(Swerve_Command_t *cmd, Swerve_State_t *state,
                          const Swerve_Feedback_t *fb);
 
 
-#endif //G4_FRAMEWORK_CHASSIS_CALC_H
+#endif //F4_FRAMEWORK_CHASSIS_CALC_H

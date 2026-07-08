@@ -5,6 +5,7 @@
 #include "System_State.h"
 #include "EventBus.h"
 #include "Buzzer.h"
+#include "LED.h"
 #include <string.h>
 
 #define MAX_FRAGMENTS 32
@@ -79,6 +80,7 @@ static void Action_Push(const Flow_t *flow) {
     ctrl.timer_ms = ctrl.steps[0].duration;
 
     Safe_Buzzer_Set(ctrl.steps[0].freq);
+    LED_SetMode_Static(ctrl.steps[0].r, ctrl.steps[0].g, ctrl.steps[0].b);
 }
 
 // 动态报警生成器
@@ -133,6 +135,7 @@ static void On_Mode_Changed(Event_ID_e event, void *param) {
             break;
         case GLOBAL_NORMAL_MATCH:
             if (!ctrl.is_running) Action_Push(&Flow_Hint);
+            LED_SetMode_Breathing(RGB_GREEN, 3.0f);
             break;
         default: break;
     }
@@ -164,6 +167,7 @@ void System_Indicator_Ticks(void) {
     }
 
     if (!ctrl.is_running && sys_state.global_mode == GLOBAL_INIT_STAGE) {
+        LED_SetPixel(RGB_OFF);
     }
 
     if (!ctrl.is_running) return;
@@ -176,10 +180,14 @@ void System_Indicator_Ticks(void) {
     if (++ctrl.idx < ctrl.total) {
         ctrl.timer_ms = ctrl.steps[ctrl.idx].duration;
         Safe_Buzzer_Set(ctrl.steps[ctrl.idx].freq);
+        // 替换为 LED_SetMode_Static，去掉 index 参数 0
+        LED_SetMode_Static(ctrl.steps[ctrl.idx].r, ctrl.steps[ctrl.idx].g, ctrl.steps[ctrl.idx].b);
     } else {
         Buzzer_Off();
         if (sys_state.global_mode == GLOBAL_NORMAL_MATCH) {
+            LED_SetMode_Breathing(RGB_GREEN, 3.0f);
         } else {
+            LED_SetMode_Static(RGB_OFF);
         }
 
         ctrl.is_running = false;

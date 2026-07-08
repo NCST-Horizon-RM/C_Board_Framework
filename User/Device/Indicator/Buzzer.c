@@ -30,6 +30,7 @@ static Buzzer_Ctrl_t buzzer;
 
 void Buzzer_Init(void)
 {
+    BSP_PWM_Start(&buzzer_pwm);
     buzzer.state = BUZZER_IDLE;
     buzzer.timer_ms = 0;
     buzzer.total_fragments = 0;

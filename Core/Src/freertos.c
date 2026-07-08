@@ -68,6 +68,20 @@ const osThreadAttr_t Command_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityHigh1,
 };
+/* Definitions for Task01 */
+osThreadId_t Task01Handle;
+const osThreadAttr_t Task01_attributes = {
+  .name = "Task01",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal1,
+};
+/* Definitions for Task02 */
+osThreadId_t Task02Handle;
+const osThreadAttr_t Task02_attributes = {
+  .name = "Task02",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal2,
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -77,6 +91,8 @@ const osThreadAttr_t Command_attributes = {
 void IMU_Task(void *argument);
 void Motor_Task(void *argument);
 void Command_Task(void *argument);
+void StartTask01(void *argument);
+void StartTask02(void *argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -116,6 +132,12 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of Command */
   CommandHandle = osThreadNew(Command_Task, NULL, &Command_attributes);
+
+  /* creation of Task01 */
+  Task01Handle = osThreadNew(StartTask01, NULL, &Task01_attributes);
+
+  /* creation of Task02 */
+  Task02Handle = osThreadNew(StartTask02, NULL, &Task02_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -181,6 +203,42 @@ __weak void Command_Task(void *argument)
     osDelay(1);
   }
   /* USER CODE END Command_Task */
+}
+
+/* USER CODE BEGIN Header_StartTask01 */
+/**
+* @brief Function implementing the Task01 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask01 */
+__weak void StartTask01(void *argument)
+{
+  /* USER CODE BEGIN StartTask01 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartTask01 */
+}
+
+/* USER CODE BEGIN Header_StartTask02 */
+/**
+* @brief Function implementing the Task02 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask02 */
+__weak void StartTask02(void *argument)
+{
+  /* USER CODE BEGIN StartTask02 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartTask02 */
 }
 
 /* Private application code --------------------------------------------------*/
