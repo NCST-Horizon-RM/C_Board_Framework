@@ -194,3 +194,10 @@ int16_t OneFilter1(int16_t now, int16_t last, float thresholdValue)
     else
         return (int16_t)(now * alpha + last * (1.0f - alpha));
 }
+
+float normalize_to_pi(float angle) {
+    angle = fmodf(angle, 2.0f * PI);
+    if (angle > PI)  angle -= 2.0f * PI;
+    if (angle < -PI) angle += 2.0f * PI;
+    return angle;
+}

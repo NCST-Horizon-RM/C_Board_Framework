@@ -2,16 +2,13 @@
 // Created by CaoKangqi on 2026/6/14.
 //
 #include "All_Task.h"
-
 #include "BSP_SPI.h"
 #include "Robot_Config.h"
-#include "Buzzer.h"
-#include "Chassis_Ctrl.h"
 #include "DBUS.h"
 #include "LED.h"
 #include "Message_Center.h"
-#include "Power_CAP.h"
-#include "Referee.h"
+#include "Gimbal_Ctrl.h"
+#include "Shoot_Ctrl.h"
 #include "Robot_Cmd.h"
 #include "System_State.h"
 #include "System_Indicator.h"
@@ -25,12 +22,9 @@ void Command_Task(void *argument)
     const TickType_t xTimeIncrement = pdMS_TO_TICKS(5);//绝对延时5ms
     PubRegister("dbus_data",  &DBUS,      sizeof(DBUS));
     PubRegister("vt13_data",  &VT13,      sizeof(VT13));
-    PubRegister("referee_data",  &Referee,      sizeof(Referee_Data_t));
     PubRegister("imu_data",   &IMU_Data,  sizeof(IMU_Data));
-    PubRegister("cap_data",   &cap,  sizeof(cap));
-
-    PubRegister("chassis_motors", &chassis_motors, sizeof(Chassis_Motor_Group_t));
     PubRegister("gimbal_motors",  &gimbal_motors,  sizeof(Gimbal_Motor_Group_t));
+    PubRegister("shoot_motors",  &shoot_motors,  sizeof(Shoot_Motor_Group_t));
     for(;;)
     {
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
@@ -69,7 +63,6 @@ void IMU_Task(void *argument) {
 
 // 运动控制任务 1000Hz
 static IMU_Data_t imu ={0};
-static Chassis_Motor_Group_t chassis_m = {0};
 static Gimbal_Motor_Group_t gimbal_m = {0};
 static Shoot_Motor_Group_t shoot_m = {0};
 void Motor_Task(void *argument)
@@ -79,25 +72,22 @@ void Motor_Task(void *argument)
     const TickType_t xTimeIncrement = pdMS_TO_TICKS(1);//绝对延时1ms
 
     Subscriber_t *imu_sub = NULL;
-    Subscriber_t *c_motor_sub = NULL;
     Subscriber_t *g_motor_sub = NULL;
     Subscriber_t *s_motor_sub = NULL;
 
     imu_sub = SubRegister("imu_data", sizeof(IMU_Data_t));
-    c_motor_sub = SubRegister("chassis_motors", sizeof(Chassis_Motor_Group_t));
     g_motor_sub = SubRegister("gimbal_motors", sizeof(Gimbal_Motor_Group_t));
     s_motor_sub = SubRegister("shoot_motors", sizeof(Shoot_Motor_Group_t));
-    Chassis_Control_Init();
+    Gimbal_Control_Init();
     for(;;)
     {
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
 
         if (imu_sub) SubGetMessage(imu_sub, &imu);
-        if (c_motor_sub) SubGetMessage(c_motor_sub, &chassis_m);
         if (g_motor_sub) SubGetMessage(g_motor_sub, &gimbal_m);
         if (s_motor_sub)  SubGetMessage(s_motor_sub, &shoot_m);
-
-        Chassis_Control_Task(&chassis_m,&imu);
+        
+        Gimbal_Control_Task(&gimbal_m,&imu);
         VOFA_JustFloat(NULL, 13, IMU_Data.pitch, IMU_Data.roll,imu.yaw,IMU_Data.temp,
             IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2],
             IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],
