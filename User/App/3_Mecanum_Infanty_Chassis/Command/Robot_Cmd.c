@@ -170,17 +170,13 @@ static void Cmd_Update_Mouse_Key(void)
  */
 static void Cmd_DualBoard_Sync(void)
 {
-    // 发送前清空脏数据
     memset(&b2b_tx_data, 0, sizeof(b2b_tx_data));
 
-    // 1. 获取裁判系统数据并打包
-    // (注意：这里的 referee_data 请根据你实际存放裁判系统数据的变量名进行替换)
-    b2b_tx_data.bits.shoot_buff         = referee_data.power_heat_data.shooter_17mm_barrel_heat;
-    b2b_tx_data.bits.huanchongnengliang = referee_data.power_heat_data.buffer_energy;
-    b2b_tx_data.bits.nowSpeed           = (uint8_t)((referee_data.shoot_data.initial_speed) * 10.0f + 0.5f);
-    b2b_tx_data.bits.robot_level        = referee_data.robot_status.robot_level;
-    b2b_tx_data.bits.judgeState         = 1; // 裁判系统在线状态
-
+    b2b_tx_data.bits.heat_last         = referee_data.robot_status.shooter_barrel_heat_limit;
+    b2b_tx_data.bits.cooling           = referee_data.robot_status.shooter_barrel_cooling_value;
+    b2b_tx_data.bits.level             = referee_data.robot_status.robot_level;
+    b2b_tx_data.bits.initial_s         = (uint8_t)roundf (referee_data.shoot_data.initial_speed *10); // 裁判系统在线状态
+    b2b_tx_data.bits.robot_HP          =referee_data.robot_status.current_HP;
     // 2. 自身颜色判断
     if(referee_data.robot_status.robot_id == 3) { // 红方
         b2b_tx_data.bits.self_color = 0;
@@ -188,13 +184,6 @@ static void Cmd_DualBoard_Sync(void)
     else if(referee_data.robot_status.robot_id == 103) { // 蓝方
         b2b_tx_data.bits.self_color = 1;
     }
-
-    // 3. 视觉状态打包 (根据实际情况赋值)
-    b2b_tx_data.bits.target      = 0;
-    b2b_tx_data.bits.visionMod   = 0;
-    b2b_tx_data.bits.visionState = 0;
-
-    // 4. 调用 CAN 发送函数
     CAN_Send_Msg(&hcan1, 0x232, b2b_tx_data.buf, 8);
 }
 

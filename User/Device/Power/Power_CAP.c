@@ -2,7 +2,6 @@
 #include <string.h>
 
 Cap_t cap;
-int open_cap_flag = 0;
 
 /**
  * @brief 电容接收数据解算
