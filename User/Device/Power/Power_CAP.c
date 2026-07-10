@@ -11,33 +11,32 @@ void Power_Cap_Rx(void *instance, uint8_t *rx_buf)
 {
     if (instance == NULL || rx_buf == NULL) return;
 
-    CapRxData_t *cap_ptr = instance;
+    Cap_t *cap_ptr = (Cap_t *)instance;
 
-    if (rx_buf[7] == 0xAA)
-    {
-        cap_ptr->offline.last_feed_tick = HAL_GetTick();
-        cap_ptr->cap_key   = rx_buf[0];
-        cap_ptr->cap_state = rx_buf[1];
+    cap_ptr->get.offline.last_feed_tick = HAL_GetTick();
+    cap_ptr->get.cap_key   = rx_buf[0];
+    cap_ptr->get.cap_state = rx_buf[1];
 
-        uint16_t raw_voltage = ((uint16_t)rx_buf[2] << 8) | rx_buf[3];
-        uint16_t raw_power   = ((uint16_t)rx_buf[4] << 8) | rx_buf[5];
+    uint16_t raw_voltage = ((uint16_t)rx_buf[2] << 8) | rx_buf[3];
+    uint16_t raw_power   = ((uint16_t)rx_buf[4] << 8) | rx_buf[5];
+    uint16_t raw_capacityt = ((uint16_t)rx_buf[6] << 8) | rx_buf[7];
 
-        cap_ptr->bat_voltage = (float)raw_voltage / 100.0f;
-        cap_ptr->nowPower    = (float)raw_power / 100.0f;
-
-        cap_ptr->Cap_Capacity = rx_buf[6];
-        cap_ptr->check_code = rx_buf[7];
-    }
+    cap_ptr->get.bat_voltage = (float)raw_voltage / 100.0f;
+    cap_ptr->get.nowPower    = (float)raw_power / 100.0f;
+    cap_ptr->get.Cap_Capacity = (float)raw_capacityt / 100.0f;
 }
 
-void Power_Cap_Tx(hcan_t *hcan, uint16_t can_id, bool enable_boost, float power_limit, uint8_t cur_buffer, bool is_alive) {
-    CapSetData_t tx_data = {0};
+/**
+ * @brief 电容控制数据发送 (底层硬件接口)
+ * @param hcan        CAN句柄
+ * @param can_id      发送的CAN ID
+ * @param tx_data_ptr 指向准备好数据的 CapSetData_t 结构体指针
+ */
+void Power_Cap_Tx(hcan_t *hcan, uint16_t can_id, CapSetData_t *tx_data_ptr)
+{
+    if (tx_data_ptr == NULL) return;
 
-    tx_data.Control.power_key     = enable_boost ? 1 : 0;
-    tx_data.Control.capPowerLimit = (uint8_t)power_limit;
-    tx_data.Control.buffer_now    = cur_buffer;
-    tx_data.Control.robot_state   = (is_alive > 0) ? 1 : 0;
-    tx_data.Control.check_code    = 0xAA;
+    tx_data_ptr->Control.check_code = 0xAA;
 
-    CAN_Send_Msg(hcan, can_id, tx_data.raw_data, 8);
+    CAN_Send_Msg(hcan, can_id, tx_data_ptr->raw_data, 8);
 }

@@ -18,6 +18,8 @@
 #define ENCODER_TO_RAD 0.0007669903939428061485f
 
 #define RPM_TO_RADS    0.10471975511965977461542f
+
+#define RADS_TO_RPM (60.0f / (2.0f * PI))
 //设备离线
 #define DEVICE_OFFLINE 0
 //设备在线

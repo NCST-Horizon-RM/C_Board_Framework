@@ -16,7 +16,7 @@
 #include "System_State.h"
 #include "System_Indicator.h"
 #include "VT13.h"
-#include "../../../Device/Host_Comm/Vofa.h"
+#include "Vofa.h"
 // 指令中心任务 200Hz
 void Command_Task(void *argument)
 {
@@ -31,9 +31,6 @@ void Command_Task(void *argument)
 
     PubRegister("chassis_motors", &chassis_motors, sizeof(Chassis_Motor_Group_t));
     PubRegister("gimbal_motors",  &gimbal_motors,  sizeof(Gimbal_Motor_Group_t));
-    PubRegister("shoot_motors",   &shoot_motors,   sizeof(Shoot_Motor_Group_t));
-
-    Robot_Cmd_Init();
     for(;;)
     {
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);

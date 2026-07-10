@@ -8,11 +8,14 @@
 
 typedef struct
 {
-    float wheel_r;    /* 轮的半径（m）*/
-    float chassis_r;         /* 底盘旋转半径（m）*/
-    float phi[4];          /* 轮子安装方位角 (rad)*/
+    float wheel_r;            /* 轮的半径 (m) */
+    float half_wheelbase;     /* 质心到前后轴的距离 (m) 即：前后轴距的一半 (Lx) */
+    float half_track_width;   /* 质心到左右轮的距离 (m) 即：左右轮距的一半 (Ly) */
     float deceleration_ratio; /* 电机减速比 */
 } mecanumInit_typdef;
+
+uint8_t Mecanum_Init(mecanumInit_typdef *mecanumInitT);
+void Mecanum_Calc(float *wheel_rpm, float vx_temp, float vy_temp, float vr, mecanumInit_typdef *mecanumInit_t);
 
 typedef struct
 {
@@ -22,12 +25,8 @@ typedef struct
     float deceleration_ratio; /* 电机减速比 */
 } OmniInit_typdef;
 
-uint8_t Mecanum_Init(mecanumInit_typdef *mecanumInitT);
-void Mecanum_Calc(float *wheel_rpm, float vx_temp, float vy_temp, float vr, mecanumInit_typdef *mecanumInit_t);
-
 uint8_t Omni_Init(OmniInit_typdef *OmniInit_t);
 void Omni_Calc(float *wheel_rpm, float vx_temp, float vy_temp, float vr, OmniInit_typdef *OmniInit_t);
-
 
 /* ==================== 舵轮 ==================== */
 
@@ -93,6 +92,5 @@ void Swerve_Inverse_Calc(Swerve_Command_t *cmd, Swerve_State_t *state,
                          float ax, float ay, float aw,
                          float vx, float vy, float vw,
                          const Swerve_Feedback_t *fb);
-
 
 #endif //F4_FRAMEWORK_CHASSIS_CALC_H

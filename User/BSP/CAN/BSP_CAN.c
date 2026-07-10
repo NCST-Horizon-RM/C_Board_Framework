@@ -33,13 +33,11 @@ static inline CAN_Stats_t* Get_CAN_Stats(hcan_t *hcan)
  */
 void CAN_Config(hcan_t *hcan, uint32_t fifo)
 {
-    // 与 FDCAN 配置保持一致：配置前重置外设，确保状态干净。
     if (HAL_CAN_DeInit(hcan) != HAL_OK) Error_Handler();
     if (HAL_CAN_Init(hcan) != HAL_OK) Error_Handler();
 
     CAN_FilterTypeDef sFilterConfig = {0};
 
-    // 必须指定 SlaveStartFilterBank，这是 F4 双 CAN 的核心
     sFilterConfig.SlaveStartFilterBank = 14;
     sFilterConfig.FilterMode           = CAN_FILTERMODE_IDMASK;
     sFilterConfig.FilterScale          = CAN_FILTERSCALE_32BIT;

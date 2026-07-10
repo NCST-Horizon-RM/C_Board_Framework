@@ -105,7 +105,7 @@ static bool Check_Boot_Sequence(uint32_t now) {
     if (init_done) return true;
 
     // 依赖查询UI播放状态，保证开机音乐播完前不切状态
-    if (now < 1800 || (sys_state.global_mode == GLOBAL_INIT_STAGE && System_Indicator_Is_Playing())) {
+    if (now < 1500) {
         return false;
     }
 
@@ -138,7 +138,7 @@ static void Update_Error_Flags(bool remote_is_online, bool in_boot_grace_period)
 }
 
 static void Arbitrate_Global_Mode(uint32_t now) {
-    if (now < 1800 || (sys_state.global_mode == GLOBAL_INIT_STAGE && System_Indicator_Is_Playing())) {
+    if (now < 1500) {
         return;
     }
 
@@ -166,24 +166,9 @@ static void Arbitrate_Global_Mode(uint32_t now) {
             state_timer = now;
         }
     }
-
     // 如果错误码有变动，发布错误更新事件
     if (sys_state.error.all != last_error.all) {
         EventBus_Publish(EVENT_ERROR_TRIGGERED, &sys_state.error);
     }
     last_error.all = sys_state.error.all;
-
-    // 周期性重新触发报警
-    uint32_t interval_ms = 0;
-    switch (sys_state.global_mode) {
-        case GLOBAL_MODULE_ERROR: interval_ms = 1000; break;
-        case GLOBAL_SAFE_LOCK:    interval_ms = 1200; break;
-        case GLOBAL_STANDBY:      interval_ms = 1000; break;
-        default: break;
-    }
-
-    if (interval_ms > 0 && (now - state_timer >= interval_ms) && !System_Indicator_Is_Playing()) {
-        EventBus_Publish(EVENT_MODE_CHANGED, &sys_state.global_mode);
-        state_timer = now;
-    }
 }

@@ -93,8 +93,8 @@ void Motor_Task(void *argument)
     Chassis_Control_Init();
     for(;;)
     {
-        vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
-
+        //vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
+        osDelay(1);
         if (imu_sub) SubGetMessage(imu_sub, &imu);
         if (c_motor_sub) SubGetMessage(c_motor_sub, &chassis_m);
         if (g_motor_sub) SubGetMessage(g_motor_sub, &gimbal_m);
@@ -111,24 +111,22 @@ void Motor_Task(void *argument)
 // 自定义任务1 1000Hz
 void StartTask01(void *argument)
 {
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t xTimeIncrement = pdMS_TO_TICKS(1);//绝对延时1ms
+    (void)argument;
     for(;;)
     {
-        vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
         //在这里加代码
+        osDelay(1);
     }
 }
 
 // 自定义任务2 1000Hz
 void StartTask02(void *argument)
 {
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t xTimeIncrement = pdMS_TO_TICKS(1);//绝对延时1ms
+    (void)argument;
     for(;;)
     {
-        vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
         //在这里加代码
+        osDelay(1);
     }
 }
 

@@ -7,37 +7,41 @@
 #include "Horizon_MATH.h"
 #include "main.h"
 
-uint8_t Mecanum_Init(mecanumInit_typdef *mecanumInitT)
+__weak uint8_t Mecanum_Init(mecanumInit_typdef *mecanumInitT)
 {
-    mecanumInitT->wheel_r    = 0.075f;
-    mecanumInitT->chassis_r= 0.25f;
-    mecanumInitT->phi[0]= 45 * DEG2RAD;
-    mecanumInitT->phi[1]= 135 * DEG2RAD;
-    mecanumInitT->phi[2]= -135 * DEG2RAD;
-    mecanumInitT->phi[3]= -45 * DEG2RAD;
-    mecanumInitT->deceleration_ratio = 3591/187;
+    mecanumInitT->wheel_r = 0.075f;
+    mecanumInitT->half_wheelbase = 0.20f;   // 前后轮中心距的一半 (Lx)
+    mecanumInitT->half_track_width = 0.20f; // 左右轮中心距的一半 (Ly)
+    mecanumInitT->deceleration_ratio = 3591.0f / 187.0f;
     return 0;
 }
 
+/**
+ * @brief 麦轮底盘运动学逆解计算
+ * @param wheel_rpm 计算输出的各轮转速数组 (RPM)
+ * @param vx X轴线速度 (前进为正, m/s)
+ * @param vy Y轴线速度 (向左为正, m/s) - 注意符合右手坐标系
+ * @param vw Z轴角速度 (逆时针旋转为正, rad/s)
+ * @param mecanumInit_t 底盘参数结构体
+ *
+ * 轮子序号映射 (标准 O 型安装，俯视滚子呈 X 型):
+ * [0] : FR (右前)
+ * [1] : FL (左前)
+ * [2] : BL (左后)
+ * [3] : BR (右后)
+ */
 void Mecanum_Calc(float *wheel_rpm, float vx, float vy, float vw, mecanumInit_typdef *mecanumInit_t)
 {
-    for (int i = 0; i < 4; i++) {
-        if (cosf(mecanumInit_t->phi[i]) == 0||sinf(mecanumInit_t->phi[i]) == 0 ) {
-            Error_Handler();
-        }
-    }
-    //TODO 不一定对
-    wheel_rpm[0] = (-vx + vy - vw * mecanumInit_t->chassis_r / cosf(mecanumInit_t->phi[0] - 45 * DEG2RAD)
-        * cosf(PI/4)) / mecanumInit_t->wheel_r * mecanumInit_t->deceleration_ratio;
-    wheel_rpm[1] = ( vx + vy + vw * mecanumInit_t->chassis_r / cosf(mecanumInit_t->phi[1] - 135 * DEG2RAD)
-        * cosf(PI/4)) / mecanumInit_t->wheel_r * mecanumInit_t->deceleration_ratio;
-    wheel_rpm[2] = ( vx - vy + vw * mecanumInit_t->chassis_r / cosf(mecanumInit_t->phi[2] - (-135) * DEG2RAD)
-        * cosf(PI/4)) / mecanumInit_t->wheel_r * mecanumInit_t->deceleration_ratio;
-    wheel_rpm[3] = (-vx - vy - vw * mecanumInit_t->chassis_r / cosf(mecanumInit_t->phi[3] - (-45) * DEG2RAD)
-        * cosf(PI/4)) / mecanumInit_t->wheel_r * mecanumInit_t->deceleration_ratio;
+    // 计算力臂之和 (Lx + Ly)
+    float lx_ly = mecanumInit_t->half_wheelbase + mecanumInit_t->half_track_width;
+    float factor = (mecanumInit_t->deceleration_ratio * RADS_TO_RPM) / mecanumInit_t->wheel_r;
+    wheel_rpm[0] = (-vx - vy - vw * lx_ly) * factor; // FR 右前
+    wheel_rpm[1] = (vx - vy - vw * lx_ly) * factor; // FL 左前
+    wheel_rpm[2] = (vx + vy - vw * lx_ly) * factor; // BL 左后
+    wheel_rpm[3] = (-vx + vy - vw * lx_ly) * factor; // BR 右后
 }
 
-uint8_t Omni_Init(OmniInit_typdef *OmniInit_t)
+__weak uint8_t Omni_Init(OmniInit_typdef *OmniInit_t)
 {
     OmniInit_t->wheel_r    = 0.075f;
     OmniInit_t->chassis_r= 0.25f;
@@ -53,7 +57,7 @@ void Omni_Calc(float *wheel_rpm, float vx, float vy, float vw, OmniInit_typdef *
 {
     for (int i = 0; i < 4; i++) {
         wheel_rpm[i] = ( -vx * cosf(OmniInit_t->phi[0]) + vy * sinf(OmniInit_t->phi[0])
-                - vw * OmniInit_t->chassis_r) * OmniInit_t->deceleration_ratio / OmniInit_t->wheel_r;
+                - vw * OmniInit_t->chassis_r) * OmniInit_t->deceleration_ratio / OmniInit_t->wheel_r * RADS_TO_RPM;
     }
 }
 
@@ -66,7 +70,7 @@ static float normalize_to_pi(float angle) {
     return angle;
 }
 
-uint8_t Swerve_Init(Swerve_State_t *state) {
+__weak uint8_t Swerve_Init(Swerve_State_t *state) {
     if (state == NULL) return 1;
     __builtin_memset(state, 0, sizeof(Swerve_State_t));
 

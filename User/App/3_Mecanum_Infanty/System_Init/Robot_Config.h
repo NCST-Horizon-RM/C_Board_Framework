@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/6/25.
 //
 
-#ifndef H7_FRAMEWORK_ROBOT_CONFIG_H
-#define H7_FRAMEWORK_ROBOT_CONFIG_H
+#ifndef F4_FRAMEWORK_ROBOT_CONFIG_H
+#define F4_FRAMEWORK_ROBOT_CONFIG_H
 
 #include "BSP_TIM.h"
 #include "DJI_Motor.h"
@@ -16,18 +16,10 @@ typedef struct __attribute__((aligned(4))){
 } Chassis_Motor_Group_t;
 
 typedef struct __attribute__((aligned(4))){
-    DJI_MOTOR_DATA_Typedef DJI_3508_Yaw;
-    DM_MOTOR_DATA_Typedef DM4310_Pitch;
     DM_MOTOR_DATA_Typedef DM4310_Yaw;
 } Gimbal_Motor_Group_t;
 
 typedef struct __attribute__((aligned(4))){
-    DJI_MOTOR_DATA_Typedef DJI_3508_Shoot_L;
-    DJI_MOTOR_DATA_Typedef DJI_3508_Shoot_R;
-    DJI_MOTOR_DATA_Typedef DJI_3508_Shoot_M;
-    DM_MOTOR_DATA_Typedef DM4310_Feed;
-    DJI_MOTOR_DATA_Typedef DJI_3508_Pull;
-    DJI_MOTOR_DATA_Typedef DJI_3508_Travel;
     DJI_MOTOR_DATA_Typedef DJI_2006_bo;
 } Shoot_Motor_Group_t;
 
@@ -36,6 +28,5 @@ extern Gimbal_Motor_Group_t  gimbal_motors;
 extern Shoot_Motor_Group_t   shoot_motors;
 
 extern BSP_PWM_t imu_heater_pwm;
-extern BSP_PWM_t trigger_pwm;
 
-#endif //H7_FRAMEWORK_ROBOT_CONFIG_H
+#endif //F4_FRAMEWORK_ROBOT_CONFIG_H

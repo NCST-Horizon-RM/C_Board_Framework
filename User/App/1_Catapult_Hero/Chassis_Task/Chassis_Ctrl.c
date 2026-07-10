@@ -109,7 +109,10 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor,
     if (chassis_cmd_sub) SubGetMessage(chassis_cmd_sub, &cmd);
     if (cap_sub) SubGetMessage(cap_sub, &local_cap_data);
     if (referee_sub) SubGetMessage(referee_sub, &chassis_referee);
-    System_State_Report(ID_CHASSIS, STATUS_RUN);
+    if (!Is_Group_Online(CHASSIS)) {
+        System_State_Report(ID_CHASSIS, STATUS_LOST);
+    }
+    else{System_State_Report(ID_CHASSIS, STATUS_RUN);}
 
     for (int i = 0; i < 4; i++) {
         chassis_ctrl.swerve_fb.steer_angle_rad[i] = (float)c_motor->DJI_6020_Steer[i].Angle_Infinite * ENCODER_TO_RAD;
@@ -212,11 +215,6 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor,
                        (int16_t)chassis_ctrl.Steer_S[1].Output,
                        (int16_t)chassis_ctrl.Steer_S[2].Output,
                        (int16_t)chassis_ctrl.Steer_S[3].Output);
-    }
-
-    if (!Is_Group_Online(CHASSIS)) {
-        System_State_Report(ID_CHASSIS, STATUS_LOST);
-
     }
 }
 

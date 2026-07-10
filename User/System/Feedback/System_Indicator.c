@@ -39,9 +39,10 @@ static const Flow_t Flow_Hint = {.steps = {
     {3000, 180, RGB_GREEN}}, .total = 3
 };
 static const Flow_t Flow_Lost = {.steps = {
-    {1500, 200, RGB_BLUE}, {0, 50, RGB_OFF},
-    {1500, 200, RGB_BLUE}}, .total = 3
-};
+        {1500, 200, RGB_BLUE}, {0, 50, RGB_OFF},
+        {1500, 200, RGB_BLUE}, {0, 550, RGB_OFF}},
+        .total = 4
+    };
 static const Flow_t Flow_Remote_Recover = {.steps = {
     {2500, 150, RGB_BLUE}, {0, 40, RGB_OFF},
     {3000, 150, RGB_GREEN}}, .total = 3
@@ -83,37 +84,45 @@ static void Action_Push(const Flow_t *flow) {
     LED_SetMode_Static(ctrl.steps[0].r, ctrl.steps[0].g, ctrl.steps[0].b);
 }
 
+#define FIXED_ALARM_SLOT_MS 1000
+#define BEEP_DUR            80
+#define SHORT_SILENCE       80
 // 动态报警生成器
 static void Build_And_Play_Module_Error(System_Error_Code_u err) {
     Flow_Dynamic_Error.total = 0;
     uint8_t offline_counts[MODULE_COUNT] = {0};
-
-    if (err.bit.chassis_offline) offline_counts[ID_CHASSIS] = ID_CHASSIS + 1;
-    if (err.bit.gimbal_offline)  offline_counts[ID_GIMBAL]  = ID_GIMBAL  + 1;
-    if (err.bit.shoot_offline)   offline_counts[ID_SHOOT]   = ID_SHOOT   + 1;
-    if (err.bit.vision_lost)     offline_counts[ID_VISION]  = ID_VISION  + 1;
-    if (err.bit.imu_fault)       offline_counts[ID_IMU]     = ID_IMU     + 1;
-
+    if (err.bit.chassis_offline) offline_counts[ID_CHASSIS] = ID_CHASSIS + 1; // 1 下
+    if (err.bit.gimbal_offline)  offline_counts[ID_GIMBAL]  = ID_GIMBAL  + 1; // 2 下
+    if (err.bit.shoot_offline)   offline_counts[ID_SHOOT]   = ID_SHOOT   + 1; // 3 下
+    if (err.bit.vision_lost)     offline_counts[ID_VISION]  = ID_VISION  + 1; // 4 下
+    if (err.bit.imu_fault)       offline_counts[ID_IMU]     = ID_IMU     + 1; // 5 下
     for (int i = 0; i < MODULE_COUNT; i++) {
-        if (offline_counts[i] > 0) {
-            for (int beep = 0; beep < offline_counts[i]; beep++) {
-                if (Flow_Dynamic_Error.total < MAX_FRAGMENTS - 2) {
-                    Flow_Dynamic_Error.steps[Flow_Dynamic_Error.total++] = (Step_t){3000, 80, RGB_RED};
-                    Flow_Dynamic_Error.steps[Flow_Dynamic_Error.total++] = (Step_t){0, 60, RGB_OFF};
-                }
+        uint8_t beeps = offline_counts[i];
+        if (beeps > 0) {
+            uint32_t active_time = (beeps - 1) * (BEEP_DUR + SHORT_SILENCE) + BEEP_DUR;
+            uint16_t pad_time = 0;
+            if (FIXED_ALARM_SLOT_MS > active_time) {
+                pad_time = FIXED_ALARM_SLOT_MS - active_time;
+            } else {
+                pad_time = SHORT_SILENCE; // 极限兜底保护
             }
-            if (Flow_Dynamic_Error.total > 0) {
-                Flow_Dynamic_Error.steps[Flow_Dynamic_Error.total - 1].duration = 800;
+            for (int b = 0; b < beeps; b++) {
+                if (Flow_Dynamic_Error.total < MAX_FRAGMENTS - 1) {
+                    Flow_Dynamic_Error.steps[Flow_Dynamic_Error.total++] = (Step_t){3000, BEEP_DUR, RGB_RED};
+                    if (b == beeps - 1) {
+                        Flow_Dynamic_Error.steps[Flow_Dynamic_Error.total++] = (Step_t){0, pad_time, RGB_OFF};
+                    } else {
+                        Flow_Dynamic_Error.steps[Flow_Dynamic_Error.total++] = (Step_t){0, SHORT_SILENCE, RGB_OFF};
+                    }
+                }
             }
         }
     }
-
     if (Flow_Dynamic_Error.total == 0) {
         Flow_Dynamic_Error.steps[0] = (Step_t){3000, 500, RGB_YELLOW};
-        Flow_Dynamic_Error.steps[1] = (Step_t){0, 500, RGB_OFF};
+        Flow_Dynamic_Error.steps[1] = (Step_t){0, FIXED_ALARM_SLOT_MS - 500, RGB_OFF};
         Flow_Dynamic_Error.total = 2;
     }
-
     Action_Push(&Flow_Dynamic_Error);
 }
 
@@ -148,7 +157,6 @@ static void On_Remote_Connection(Event_ID_e event, void *param) {
     }
 }
 
-// -------------------
 
 bool System_Indicator_Is_Playing(void) {
     return ctrl.is_running;
@@ -180,17 +188,22 @@ void System_Indicator_Ticks(void) {
     if (++ctrl.idx < ctrl.total) {
         ctrl.timer_ms = ctrl.steps[ctrl.idx].duration;
         Safe_Buzzer_Set(ctrl.steps[ctrl.idx].freq);
-        // 替换为 LED_SetMode_Static，去掉 index 参数 0
         LED_SetMode_Static(ctrl.steps[ctrl.idx].r, ctrl.steps[ctrl.idx].g, ctrl.steps[ctrl.idx].b);
     } else {
+        ctrl.is_running = false;
+        playing_flow = NULL;
         Buzzer_Off();
-        if (sys_state.global_mode == GLOBAL_NORMAL_MATCH) {
+
+        if (sys_state.global_mode == GLOBAL_MODULE_ERROR || sys_state.global_mode == GLOBAL_SAFE_LOCK) {
+            Build_And_Play_Module_Error(sys_state.error);
+        }
+        else if (sys_state.global_mode == GLOBAL_STANDBY) {
+            Action_Push(&Flow_Lost);
+        }
+        else if (sys_state.global_mode == GLOBAL_NORMAL_MATCH) {
             LED_SetMode_Breathing(RGB_GREEN, 3.0f);
         } else {
             LED_SetMode_Static(RGB_OFF);
         }
-
-        ctrl.is_running = false;
-        playing_flow = NULL;
     }
 }

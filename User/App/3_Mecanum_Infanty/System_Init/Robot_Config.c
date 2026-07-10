@@ -11,36 +11,34 @@
 #include "Robot_Config.h"
 #include "Comm_DualBoard.h"
 #include "Power_CAP.h"
+#include "Robot_Cmd.h"
 
 Chassis_Motor_Group_t chassis_motors;
 Gimbal_Motor_Group_t  gimbal_motors;
-Shoot_Motor_Group_t   shoot_motors;
 
-BSP_PWM_t trigger_pwm = {&htim4, TIM_CHANNEL_2, PWM_CHANNEL_NORMAL};
+/*UART_RX_NODE(&huart3, 18, DBUS_RX_DATA, NULL, 18, &DBUS, DBUS_Resolved);
+OFFLINE_NODE(&DBUS.offline, DBUS_OFFLINE_TIME, GROUP_NONE);*/
 
-UART_RX_NODE(&huart3, 18, DBUS_RX_DATA, NULL, 18, &DBUS, DBUS_Resolved);
-OFFLINE_NODE(&DBUS.offline, DBUS_OFFLINE_TIME, GROUP_NONE);
+UART_RX_NODE(&huart6, 0, Referee_Rx_Buf[0], Referee_Rx_Buf[1], REFEREE_RXFRAME_LENGTH, NULL, Referee_System_Frame_Update);
+OFFLINE_NODE(&Referee.offline, REFEREE_OFFLINE_TIME, GROUP_NONE);
 
-CAN_RX_NODE(CAN1, 0x201, &chassis_motors.DJI_3508_Chassis[0], DJI_Motor_Resolve);
+CAN_RX_NODE(CAN1, 0x288, &cap, Power_Cap_Rx);
+OFFLINE_NODE(&cap.get.offline, CAP_OFFLINE_TIME, GROUP_NONE);
+
+CAN_RX_NODE(CAN1, 0x231, &b2b_rx_data, DualBoard_CAN_Rx_Callback);
+
+
+CAN_RX_NODE(CAN1, 0x301,&gimbal_motors.DM4310_Yaw, DM_1to4_Resolve);
+OFFLINE_NODE(&gimbal_motors.DM4310_Yaw.offline, MOTOR_OFFLINE_TIME, GIMBAL);
+
+CAN_RX_NODE(CAN2, 0x201, &chassis_motors.DJI_3508_Chassis[0], DJI_Motor_Resolve);
 OFFLINE_NODE(&chassis_motors.DJI_3508_Chassis[0].offline, MOTOR_OFFLINE_TIME, CHASSIS);
 
-CAN_RX_NODE(CAN1, 0x202, &chassis_motors.DJI_3508_Chassis[1], DJI_Motor_Resolve);
+CAN_RX_NODE(CAN2, 0x202, &chassis_motors.DJI_3508_Chassis[1], DJI_Motor_Resolve);
 OFFLINE_NODE(&chassis_motors.DJI_3508_Chassis[1].offline, MOTOR_OFFLINE_TIME, CHASSIS);
 
-CAN_RX_NODE(CAN1, 0x203, &chassis_motors.DJI_3508_Chassis[2], DJI_Motor_Resolve);
+CAN_RX_NODE(CAN2, 0x203, &chassis_motors.DJI_3508_Chassis[2], DJI_Motor_Resolve);
 OFFLINE_NODE(&chassis_motors.DJI_3508_Chassis[2].offline, MOTOR_OFFLINE_TIME, CHASSIS);
 
-CAN_RX_NODE(CAN1, 0x204, &chassis_motors.DJI_3508_Chassis[3], DJI_Motor_Resolve);
+CAN_RX_NODE(CAN2, 0x204, &chassis_motors.DJI_3508_Chassis[3], DJI_Motor_Resolve);
 OFFLINE_NODE(&chassis_motors.DJI_3508_Chassis[3].offline, MOTOR_OFFLINE_TIME, CHASSIS);
-
-CAN_RX_NODE(CAN2, 0x205, &chassis_motors.DJI_6020_Steer[0], DJI_Motor_Resolve);
-OFFLINE_NODE(&chassis_motors.DJI_6020_Steer[0].offline, MOTOR_OFFLINE_TIME, CHASSIS);
-
-CAN_RX_NODE(CAN2, 0x206, &chassis_motors.DJI_6020_Steer[1], DJI_Motor_Resolve);
-OFFLINE_NODE(&chassis_motors.DJI_6020_Steer[1].offline, MOTOR_OFFLINE_TIME, CHASSIS);
-
-CAN_RX_NODE(CAN2, 0x207, &chassis_motors.DJI_6020_Steer[2], DJI_Motor_Resolve);
-OFFLINE_NODE(&chassis_motors.DJI_6020_Steer[2].offline, MOTOR_OFFLINE_TIME, CHASSIS);
-
-CAN_RX_NODE(CAN2, 0x208, &chassis_motors.DJI_6020_Steer[3], DJI_Motor_Resolve);
-OFFLINE_NODE(&chassis_motors.DJI_6020_Steer[3].offline, MOTOR_OFFLINE_TIME, CHASSIS);

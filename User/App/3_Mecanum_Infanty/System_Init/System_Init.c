@@ -12,7 +12,6 @@
 #include "LED.h"
 #include "System_State.h"
 #include "Robot_Cmd.h"
-#include "Robot_Config.h"
 #include "System_Indicator.h"
 
 uint32_t stm32_id[3];
