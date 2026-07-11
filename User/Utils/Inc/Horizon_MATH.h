@@ -28,5 +28,5 @@ float ARM_Atan2_Fast(float y, float x);
 float ARM_Sin_Fast(float angle_deg);
 float ARM_Cos_Fast(float angle_deg);
 int16_t OneFilter1(int16_t now, int16_t last, float thresholdValue);
-
+float normalize_to_pi(float angle);
 #endif //F4_FRAMEWORK_CKQ_MATH_H

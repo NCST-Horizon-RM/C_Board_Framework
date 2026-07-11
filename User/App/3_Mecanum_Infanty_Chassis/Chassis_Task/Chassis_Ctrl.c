@@ -91,8 +91,8 @@ uint8_t Chassis_Control_Init(void)
             0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     }
     // 底盘跟随PID初始化
-    float PID_Chaasis_Follow[3] = {12.0f,   0.0f,   0.0f};
-    PID_Init(&chassis_ctrl.Follow, 20.0f, 2.0f, PID_Chaasis_Follow,
+    float PID_Chassis_Follow[3] = {12.0f,   0.0f,   0.0f};
+    PID_Init(&chassis_ctrl.Follow, 20.0f, 2.0f, PID_Chassis_Follow,
              0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     // 功率控制初始化及参数配置
     Power_Ctrl_Init(&chassis_model);
@@ -172,7 +172,8 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor,
         // 逆运动学与速度环 PID 计算
         float target_rpm[4] = {0};
         Mecanum_Calc(target_rpm, cur_vx_chassis, cur_vy_chassis, cur_vw, &chassis_ctrl.Mecanum);
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++)
+        {
             PID_Calculate(&chassis_ctrl.Drive_S[i], c_motor->DJI_3508_Chassis[i].Speed_now, target_rpm[i]);
         }
         // 功率控制

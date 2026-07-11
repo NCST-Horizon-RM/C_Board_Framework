@@ -63,12 +63,6 @@ void Omni_Calc(float *wheel_rpm, float vx, float vy, float vw, OmniInit_typdef *
 
 #define M3508_NM_TO_RAW ( (1.0f / (15.7647f * 0.0157f * 0.85f)) * (16384.0f / 20.0f) )
 
-static float normalize_to_pi(float angle) {
-    angle = fmodf(angle, 2.0f * PI);
-    if (angle > PI)  angle -= 2.0f * PI;
-    if (angle < -PI) angle += 2.0f * PI;
-    return angle;
-}
 
 __weak uint8_t Swerve_Init(Swerve_State_t *state) {
     if (state == NULL) return 1;

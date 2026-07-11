@@ -78,7 +78,7 @@ void Motor_Task(void *argument)
     imu_sub = SubRegister("imu_data", sizeof(IMU_Data_t));
     g_motor_sub = SubRegister("gimbal_motors", sizeof(Gimbal_Motor_Group_t));
     s_motor_sub = SubRegister("shoot_motors", sizeof(Shoot_Motor_Group_t));
-
+    Gimbal_Control_Init();
     for(;;)
     {
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
@@ -87,7 +87,7 @@ void Motor_Task(void *argument)
         if (g_motor_sub) SubGetMessage(g_motor_sub, &gimbal_m);
         if (s_motor_sub)  SubGetMessage(s_motor_sub, &shoot_m);
         
-
+        Gimbal_Control_Task(&gimbal_m,&imu);
         VOFA_JustFloat(NULL, 13, IMU_Data.pitch, IMU_Data.roll,imu.yaw,IMU_Data.temp,
             IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2],
             IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],

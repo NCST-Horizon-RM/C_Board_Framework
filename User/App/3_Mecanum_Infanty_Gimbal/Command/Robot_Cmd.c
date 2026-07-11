@@ -27,6 +27,8 @@
 #define KB_VW_COEF             660.0f
 #define MOUSE_PITCH_COEF       0.06f
 #define MOUSE_YAW_COEF         0.04f
+#define KB_YAW_COEF            2.0f
+
 
 #define YAW_ZERO               5100
 
@@ -135,6 +137,8 @@ static void Cmd_Update_Remote_Ctrl(void)
     chassis_cmd.target_vx = (float)vt13_data.Remote.Channel [1] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vy = -(float)vt13_data.Remote.Channel[0] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_XY_COEF;
+    gimbal_cmd.target_yaw -=(float)vt13_data.Remote.Channel [2]*RC_YAW_COEF;
+    gimbal_cmd.target_pitch -=(float)vt13_data.Remote.Channel[3] * RC_PITCH_COEF;
 }
 
 /**
@@ -145,7 +149,8 @@ static void Cmd_Update_Mouse_Key(void)
     chassis_cmd.target_vx = (float)(vt13_data.KeyBoard.W - vt13_data.KeyBoard.S)* KB_WASD_COEF;
     chassis_cmd.target_vy = (float)(vt13_data.KeyBoard.D - vt13_data.KeyBoard.A)* KB_WASD_COEF;
     chassis_cmd.target_vw = (float)(-vt13_data.KeyBoard.Shift *KB_VW_COEF);
-
+    gimbal_cmd.target_yaw   -=(float)(vt13_data.KeyBoard.E- vt13_data.KeyBoard.Q ) * KB_YAW_COEF+(vt13_data.Mouse.X_Flt)*MOUSE_YAW_COEF;
+    gimbal_cmd.target_pitch -=(float)(vt13_data.Mouse.Y_Flt *MOUSE_PITCH_COEF) ;
 
 }
 
