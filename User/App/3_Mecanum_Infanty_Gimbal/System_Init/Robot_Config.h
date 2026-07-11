@@ -10,6 +10,7 @@
 #include "DM_Motor.h"
 #include "LK_Motor.h"
 
+
 typedef struct __attribute__((aligned(4))){
 
 } Chassis_Motor_Group_t;
@@ -24,6 +25,7 @@ typedef struct __attribute__((aligned(4))){
     DJI_MOTOR_DATA_Typedef DJI_3508_R;
     DJI_MOTOR_DATA_Typedef DJI_3508_L;
 } Shoot_Motor_Group_t;
+
 
 extern Chassis_Motor_Group_t chassis_motors;
 extern Gimbal_Motor_Group_t  gimbal_motors;

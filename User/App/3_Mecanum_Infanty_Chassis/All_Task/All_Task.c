@@ -133,11 +133,11 @@ void StartTask02(void *argument)
 void MY_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     //定时器3 1000Hz
     if (htim->Instance == TIM3) {
-        DWT_SysTimeUpdate();
+        DWT_SysTimeUpdate();//系统时间
         Offline_Monitor();
         System_State_Update();
         LED_Ticks();
-        System_Indicator_Ticks();
+        System_Indicator_Ticks();//蜂鸣器
     }
     //定时器6 500Hz
     if (htim->Instance == TIM6) {

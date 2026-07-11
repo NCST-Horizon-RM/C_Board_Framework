@@ -47,9 +47,12 @@ typedef enum {
 
 typedef struct {
     Shoot_Mode_e mode;
-    float friction_rpm;      // 摩擦轮目标转速
+    float lfriction_rpm;      // 左摩擦轮目标转速
+    float rfriction_rpm;       //右摩擦轮目标转速
     bool trigger_single;     // 单发
     bool trigger_auto;       // 连发
+    uint8_t last_fn1;
+    uint8_t last_S1 ;
     uint8_t bullet_speed;    // 目标射速
 } Shoot_Cmd_t;
 

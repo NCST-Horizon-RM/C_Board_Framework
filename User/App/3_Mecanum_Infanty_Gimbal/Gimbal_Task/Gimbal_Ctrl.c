@@ -71,6 +71,7 @@ void Gimbal_Control_Task(const Gimbal_Motor_Group_t *g_motor,const IMU_Data_t *g
     bool is_system_locked = (local_sys_state.global_mode == GLOBAL_SAFE_LOCK ||
                              local_sys_state.global_mode == GLOBAL_STANDBY ||
                              local_sys_state.global_mode == GLOBAL_INIT_STAGE);
+
     if (cmd.mode == GIMBAL_CMD_SAFE || is_system_locked)
     {
         // 清空PID
