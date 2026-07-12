@@ -35,7 +35,6 @@
 // --- Pub/Sub 句柄 ---
 static Subscriber_t *sys_state_sub;
 static Subscriber_t *vt13_sub;
-static Subscriber_t *referee_sub;
 static Subscriber_t *gimbal_motors_sub;
 static Subscriber_t *shoot_motors_sub;
 static Subscriber_t *imu_sub;
@@ -47,7 +46,6 @@ static Publisher_t *shoot_cmd_pub;
 // --- 本地静态内存缓存 ---
 static System_State_t cmd_sys_state;
 static VT13_Typedef vt13_data;
-static Referee_Data_t referee_data;
 static Gimbal_Motor_Group_t gimbal_motors_data;
 static Shoot_Motor_Group_t shoot_motors_data;
 static IMU_Data_t imu_data;
@@ -69,7 +67,6 @@ void Robot_Cmd_Init(void)
 {
     sys_state_sub = SubRegister("system_state", sizeof(System_State_t));
     vt13_sub     = SubRegister("vt13_data", sizeof(VT13_Typedef));
-    referee_sub = SubRegister("referee_data",sizeof(Referee_Data_t));
     gimbal_motors_sub = SubRegister("gimbal_motors", sizeof(Gimbal_Motor_Group_t));
     shoot_motors_sub = SubRegister("shoot_motors",sizeof(Shoot_Motor_Group_t));
     imu_sub = SubRegister("imu_data", sizeof(IMU_Data_t));
@@ -82,7 +79,6 @@ void Robot_Cmd_Update(void)
 {
     if (sys_state_sub) SubGetMessage(sys_state_sub, &cmd_sys_state);
     if (vt13_sub)     SubGetMessage(vt13_sub, &vt13_data);
-    if (referee_sub)  SubGetMessage(referee_sub,&referee_data);
     if (gimbal_motors_sub) SubGetMessage(gimbal_motors_sub,&gimbal_motors_data);
     if (shoot_motors_sub) SubGetMessage(shoot_motors_sub,&shoot_motors_data);
     if (imu_sub)      SubGetMessage(imu_sub,&imu_data);
@@ -135,6 +131,7 @@ static void Cmd_Handle_Safe_Mode(void)
  */
 static void Cmd_Update_Remote_Ctrl(void)
 {
+    // 底盘
     int16_t relative_angle = YAW_ZERO - gimbal_motors_data.DM4310_Yaw.Angle_now;
     if (relative_angle > 4096) {relative_angle -= 8192;}
     else if (relative_angle < -4096) {relative_angle += 8192;}
@@ -143,19 +140,21 @@ static void Cmd_Update_Remote_Ctrl(void)
     chassis_cmd.target_vx = (float)vt13_data.Remote.Channel [1] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vy = -(float)vt13_data.Remote.Channel[0] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_XY_COEF;
+    //云台
     gimbal_cmd.target_yaw -=(float)vt13_data.Remote.Channel [2]*RC_YAW_COEF;
     gimbal_cmd.target_pitch -=(float)vt13_data.Remote.Channel[3] * RC_PITCH_COEF;
-    if (vt13_data.Remote.fn_1==1&&shoot_cmd.last_fn1==0)
-    {
-        shoot_cmd.trigger_single = true;
-    }
-    else if (vt13_data.Remote.fn_2==1||VT13.Remote.trigger==1)
-    {
-        shoot_cmd.trigger_auto = true;
+    //发射
+    shoot_cmd.mode = SHOOT_CMD_READY;
+    shoot_cmd.trigger_single = (vt13_data.Remote.fn_1==1 && shoot_cmd.last_fn1==0);
+    shoot_cmd.trigger_auto   = (vt13_data.Remote.fn_2==1||vt13_data.Remote.trigger==1);
+    if (vt13_data.Remote.mode_sw != 0) {
+        shoot_cmd.mode = SHOOT_CMD_RUN;
+        if (shoot_cmd.trigger_single || shoot_cmd.trigger_auto)
+        {
+            shoot_cmd.mode = SHOOT_CMD_FIRE;
+        }
     }
     shoot_cmd.last_fn1 = vt13_data.Remote.fn_1;
-
-
 }
 
 /**

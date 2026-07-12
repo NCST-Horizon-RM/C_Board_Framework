@@ -41,7 +41,8 @@ typedef struct {
 // 发射机构控制指令
 typedef enum {
     SHOOT_CMD_SAFE = 0,      // 安全锁死，摩擦轮停转，拨弹停止
-    SHOOT_CMD_READY,         // 摩擦轮怠速/准备状态
+    SHOOT_CMD_READY,         // 摩擦轮停转，拨盘目标固定在当前位置
+    SHOOT_CMD_RUN,           // 摩擦轮启动
     SHOOT_CMD_FIRE           // 允许开火状态
 } Shoot_Mode_e;
 

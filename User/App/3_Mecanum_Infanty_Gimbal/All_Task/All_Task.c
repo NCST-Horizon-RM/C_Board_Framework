@@ -65,6 +65,8 @@ void IMU_Task(void *argument) {
 static IMU_Data_t imu ={0};
 static Gimbal_Motor_Group_t gimbal_m = {0};
 static Shoot_Motor_Group_t shoot_m = {0};
+static uint32_t motor_DWT_Count = 0;
+static float motor_period_s = 0.0f;
 void Motor_Task(void *argument)
 {
     (void)argument;
@@ -78,18 +80,20 @@ void Motor_Task(void *argument)
     imu_sub = SubRegister("imu_data", sizeof(IMU_Data_t));
     g_motor_sub = SubRegister("gimbal_motors", sizeof(Gimbal_Motor_Group_t));
     s_motor_sub = SubRegister("shoot_motors", sizeof(Shoot_Motor_Group_t));
+    motor_DWT_Count = DWT->CYCCNT;
     Gimbal_Control_Init();
     Shoot_Control_Init();
     for(;;)
     {
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
+        motor_period_s = DWT_GetDeltaT(&motor_DWT_Count);
 
         if (imu_sub) SubGetMessage(imu_sub, &imu);
         if (g_motor_sub) SubGetMessage(g_motor_sub, &gimbal_m);
         if (s_motor_sub)  SubGetMessage(s_motor_sub, &shoot_m);
         
         Gimbal_Control_Task(&gimbal_m,&imu);
-        Shoot_Control_Task(&shoot_m);
+        Shoot_Control_Task(&shoot_m,motor_period_s);
         VOFA_JustFloat(NULL, 13, IMU_Data.pitch, IMU_Data.roll,imu.yaw,IMU_Data.temp,
             IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2],
             IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],
