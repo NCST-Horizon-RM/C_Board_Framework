@@ -119,7 +119,6 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor)
     static uint32_t last_shot_time = 0;
     static bool is_init =false;
     static float smooth_ref = 0.0f;
-//TODO:摩擦轮目标值赋值
     shoot_ctrl.Counts_Shoot=shoot_ctrl.motor_ratio*shoot_ctrl.slot_num /shoot_ctrl.slot_num;
 //包含摩擦轮是否开启
     if (VT13.Remote.mode_sw  ==0)
@@ -163,7 +162,6 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor)
     if ((shoot_ctrl.fire_state==1)&&shoot_ctrl.use_smoothing ==1)//使用平滑模式
     {
         float step = (shoot_ctrl.target_freq * shoot_ctrl.Counts_Shoot) / 1000.0f;
-
         if (smooth_ref > final_target)
         {
             smooth_ref -= step;
@@ -182,7 +180,6 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor)
     {
         smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;;
     }
-
     shoot_ctrl.Lfire_S.Ref=cmd.lfriction_rpm;
     shoot_ctrl.Rfire_S.Ref=cmd.rfriction_rpm;
     shoot_ctrl.Bmotor_P.Ref=smooth_ref;
@@ -193,7 +190,6 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor)
     PID_Calculate(&shoot_ctrl.Bmotor_S, g_motor->DJI_2006_bo.Speed_now, shoot_ctrl.Bmotor_P .Output);
     DJI_Motor_Send(&hcan2,0x200,shoot_ctrl.Lfire_S.Output,shoot_ctrl.Rfire_S.Output,0,0);
     DJI_Motor_Send(&hcan1,0x200,0,0,shoot_ctrl.Bmotor_S.Output,0 );
-
 }
 //射击检测
 #define K_UP             0.673//0.360f   // 上升系数
@@ -259,10 +255,6 @@ bool Shoot_Count(float speed1, float speed2)
             shoot_ctrl.Det_Count.max_drop_in_round = 0;
         }
     }
-
-
-
-
     return shoot_done;
 }
 //TODO:火控待完善

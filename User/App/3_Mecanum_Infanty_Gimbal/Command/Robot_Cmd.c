@@ -139,7 +139,6 @@ static void Cmd_Update_Remote_Ctrl(void)
     if (relative_angle > 4096) {relative_angle -= 8192;}
     else if (relative_angle < -4096) {relative_angle += 8192;}
     chassis_cmd.offset_angle = (float)relative_angle * ENCODER_TO_RAD;
-
     chassis_cmd.target_vx = (float)vt13_data.Remote.Channel [1] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vy = -(float)vt13_data.Remote.Channel[0] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_XY_COEF;
@@ -154,8 +153,6 @@ static void Cmd_Update_Remote_Ctrl(void)
         shoot_cmd.trigger_auto = true;
     }
     shoot_cmd.last_fn1 = vt13_data.Remote.fn_1;
-
-
 }
 
 /**
