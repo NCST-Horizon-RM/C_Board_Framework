@@ -2,8 +2,8 @@
 // Created by CaoKangqi on 2026/2/23.
 //
 
-#ifndef F4_FRAMEWORK_CHASSIS_CALC_H
-#define F4_FRAMEWORK_CHASSIS_CALC_H
+#ifndef G4_FRAMEWORK_CHASSIS_CALC_H
+#define G4_FRAMEWORK_CHASSIS_CALC_H
 #include <stdint.h>
 
 typedef struct
@@ -27,6 +27,7 @@ typedef struct
 
 uint8_t Omni_Init(OmniInit_typdef *OmniInit_t);
 void Omni_Calc(float *wheel_rpm, float vx_temp, float vy_temp, float vr, OmniInit_typdef *OmniInit_t);
+
 
 /* ==================== 舵轮 ==================== */
 
@@ -54,7 +55,7 @@ typedef struct {
 typedef struct {
     Swerve_Cfg_t cfg;
 
-    // 底盘速度状态
+    // 底盘核心速度状态
     float vx;              // 底盘x轴实际速度 (m/s)
     float vy;              // 底盘y轴实际速度 (m/s)
     float vw;              // 底盘实际角速度 (rad/s)
@@ -84,6 +85,69 @@ typedef struct {
     float ff_torque_raw[4];          // 前馈控制量
 } Swerve_Command_t;
 
+typedef struct
+{
+    float phi[4];
+
+    float Swerve_offset[4]; // 舵轮零点偏角
+
+    float direction;//舵向输出轴方向：与z轴相同为1,与z轴相反为-1
+
+    float R;
+    float r;
+    float m;
+    float J;
+
+    float gear_d;           // 驱动电机减速比
+
+    float a_max;
+    float th_max;
+
+}Swerve_Cfg_t2;
+
+// 实时单轮调试/物理状态
+typedef struct {
+    float theta_now;       // 归一化±π的舵轮实际角度 (rad)
+    float theta_target;    // 归一化±π的舵轮目标角度 (rad)
+    float v_theta_now;     // 舵轮实际线速度 (m/s)
+    float v_theta_target;  // 舵轮目标线速度 (m/s)
+    float v_wheel_now;     // 单轮实际线速度 (m/s)
+    float v_wheel_target;  // 单轮目标线速度 (m/s)
+    float steer_torque_pid;                  // 舵力矩控制量
+    float wheel_torque_feedforward;          // 轮力矩前馈控制量
+    float wheel_torque_pid;                  // 轮力矩修正量
+} Swerve_Wheel_t;
+
+typedef struct {
+    Swerve_Cfg_t2 cfg;
+
+    // 底盘核心速度状态
+    float vx;              // 底盘x轴实际速度 (m/s)
+    float vy;              // 底盘y轴实际速度 (m/s)
+    float vw;              // 底盘实际角速度 (rad/s)
+
+    // 底盘目标指令
+    float vx_target;       // 底盘x轴目标速度 (m/s)
+    float vy_target;       // 底盘y轴目标速度 (m/s)
+    float vw_target;       // 底盘目标角速度 (rad/s)
+    float ax_target;       // 底盘x轴目标加速度 (m/s²)
+    float ay_target;       // 底盘y轴目标加速度 (m/s²)
+    float aw_target;       // 底盘目标角加速度 (rad/s²)
+
+    Swerve_Wheel_t wheel[4];
+} Swerve_State_t2;
+
+typedef struct {
+    float steer_angle_encoder[4];  // 舵轮当前连续绝对角度 (encoder,8192)
+    float steer_rpm[4];
+    float wheel_rpm[4];        // 驱动轮当前转速 (rpm)
+} Swerve_Feedback_t2;
+
+typedef struct {
+    float steer_I[4];       // 舵控制电流(encoder,16384)
+    float wheel_I[4];       // 轮控制电流(encoder,16384)
+} Swerve_Command_t2;
+
 uint8_t Swerve_Init(Swerve_State_t *state);
 
 void Swerve_Forward_Calc(Swerve_State_t *now, const Swerve_Feedback_t *fb);
@@ -92,5 +156,13 @@ void Swerve_Inverse_Calc(Swerve_Command_t *cmd, Swerve_State_t *state,
                          float ax, float ay, float aw,
                          float vx, float vy, float vw,
                          const Swerve_Feedback_t *fb);
+//舵轮第二套解算
+uint8_t Swerve_Init2( Swerve_State_t2*state);
+void Swerve_Forward_Calc2(Swerve_State_t2 *now);
+void Swerve_Inverse_Calc2(Swerve_State_t2*state);
+void Wheel_Calculation(Swerve_State_t2*state);
+void Yaw_Calculation(Swerve_State_t2*state);
+void Swerve_Receive_Transform(Swerve_State_t2 *state, const Swerve_Feedback_t2 *fb);
+void Swerve_Send_Transform(Swerve_State_t2*state, Swerve_Command_t2 *cmd);
 
-#endif //F4_FRAMEWORK_CHASSIS_CALC_H
+#endif //G4_FRAMEWORK_CHASSIS_CALC_H

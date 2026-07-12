@@ -162,7 +162,7 @@ static void Cmd_Update_Mouse_Key(void)
         chassis_cmd.mode = CHASSIS_CMD_FOLLOW;
         chassis_cmd.target_vw = 0.0f;
     }
-    chassis_cmd.is_cap_on = b2b_rx_data.bits.key_c;
+    chassis_cmd.is_cap_on = b2b_rx_data.bits.key_v;
 }
 
 /**

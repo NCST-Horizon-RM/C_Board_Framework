@@ -31,7 +31,7 @@
 //遥控离线检测时间
 #define DBUS_OFFLINE_TIME 50
 
-#define REFEREE_OFFLINE_TIME 800
+#define REFEREE_OFFLINE_TIME 800  //ms
 
 #define INIT_ANGLE 0
 
