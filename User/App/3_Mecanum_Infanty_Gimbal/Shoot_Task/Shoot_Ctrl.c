@@ -163,7 +163,6 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor)
     if ((shoot_ctrl.fire_state==1)&&shoot_ctrl.use_smoothing ==1)//使用平滑模式
     {
         float step = (shoot_ctrl.target_freq * shoot_ctrl.Counts_Shoot) / 1000.0f;
-
         if (smooth_ref > final_target)
         {
             smooth_ref -= step;
@@ -193,7 +192,6 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor)
     PID_Calculate(&shoot_ctrl.Bmotor_S, g_motor->DJI_2006_bo.Speed_now, shoot_ctrl.Bmotor_P .Output);
     DJI_Motor_Send(&hcan2,0x200,shoot_ctrl.Lfire_S.Output,shoot_ctrl.Rfire_S.Output,0,0);
     DJI_Motor_Send(&hcan1,0x200,0,0,shoot_ctrl.Bmotor_S.Output,0 );
-
 }
 //射击检测
 #define K_UP             0.673//0.360f   // 上升系数
@@ -259,10 +257,6 @@ bool Shoot_Count(float speed1, float speed2)
             shoot_ctrl.Det_Count.max_drop_in_round = 0;
         }
     }
-
-
-
-
     return shoot_done;
 }
 //TODO:火控待完善
