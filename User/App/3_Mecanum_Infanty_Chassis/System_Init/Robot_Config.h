@@ -12,7 +12,6 @@
 
 typedef struct __attribute__((aligned(4))){
     DJI_MOTOR_DATA_Typedef DJI_3508_Chassis[4];
-    DJI_MOTOR_DATA_Typedef DJI_6020_Steer[4];
 } Chassis_Motor_Group_t;
 
 typedef struct __attribute__((aligned(4))){
@@ -20,7 +19,6 @@ typedef struct __attribute__((aligned(4))){
 } Gimbal_Motor_Group_t;
 
 typedef struct __attribute__((aligned(4))){
-    DJI_MOTOR_DATA_Typedef DJI_2006_bo;
 } Shoot_Motor_Group_t;
 
 extern Chassis_Motor_Group_t chassis_motors;

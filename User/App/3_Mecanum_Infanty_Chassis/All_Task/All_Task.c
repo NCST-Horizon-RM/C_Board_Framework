@@ -18,6 +18,8 @@
 #include "VT13.h"
 #include "Vofa.h"
 // 指令中心任务 200Hz
+static uint32_t CMD_DWT_Count = 0;
+static float cmd_period_s = 0.0f;
 void Command_Task(void *argument)
 {
     (void)argument;
@@ -31,10 +33,14 @@ void Command_Task(void *argument)
 
     PubRegister("chassis_motors", &chassis_motors, sizeof(Chassis_Motor_Group_t));
     PubRegister("gimbal_motors",  &gimbal_motors,  sizeof(Gimbal_Motor_Group_t));
+
+    CMD_DWT_Count = DWT->CYCCNT;
+    Robot_Cmd_Init();
     for(;;)
     {
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
 
+        cmd_period_s = DWT_GetDeltaT(&CMD_DWT_Count);
         Robot_Cmd_Update();
     }
 }
@@ -50,7 +56,6 @@ static void IMU_Interrupt_Handler(void) {
 }
 static uint32_t INS_DWT_Count = 0;
 static float imu_period_s = 0.0f;
-DWT_Profiler_t ins_time;
 void IMU_Task(void *argument) {
     (void)argument;
     xIMUTaskHandle = xTaskGetCurrentTaskHandle();
@@ -60,10 +65,7 @@ void IMU_Task(void *argument) {
     for(;;) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         imu_period_s = DWT_GetDeltaT(&INS_DWT_Count);
-        DWT_Profile_Start(&ins_time);
         IMU_Update_Task(&IMU_Data, imu_period_s);
-        DWT_Profile_Stop(&ins_time);
-        DWT_SysTimeUpdate();
     }
 }
 
@@ -71,7 +73,8 @@ void IMU_Task(void *argument) {
 static IMU_Data_t imu ={0};
 static Chassis_Motor_Group_t chassis_m = {0};
 static Gimbal_Motor_Group_t gimbal_m = {0};
-static Shoot_Motor_Group_t shoot_m = {0};
+static uint32_t motor_DWT_Count = 0;
+static float motor_period_s = 0.0f;
 void Motor_Task(void *argument)
 {
     (void)argument;
@@ -81,50 +84,60 @@ void Motor_Task(void *argument)
     Subscriber_t *imu_sub = NULL;
     Subscriber_t *c_motor_sub = NULL;
     Subscriber_t *g_motor_sub = NULL;
-    Subscriber_t *s_motor_sub = NULL;
 
     imu_sub = SubRegister("imu_data", sizeof(IMU_Data_t));
     c_motor_sub = SubRegister("chassis_motors", sizeof(Chassis_Motor_Group_t));
     g_motor_sub = SubRegister("gimbal_motors", sizeof(Gimbal_Motor_Group_t));
-    s_motor_sub = SubRegister("shoot_motors", sizeof(Shoot_Motor_Group_t));
+
+    motor_DWT_Count = DWT->CYCCNT;
     Chassis_Control_Init();
     for(;;)
     {
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
 
+        motor_period_s = DWT_GetDeltaT(&motor_DWT_Count);
         if (imu_sub) SubGetMessage(imu_sub, &imu);
         if (c_motor_sub) SubGetMessage(c_motor_sub, &chassis_m);
         if (g_motor_sub) SubGetMessage(g_motor_sub, &gimbal_m);
-        if (s_motor_sub)  SubGetMessage(s_motor_sub, &shoot_m);
         
-        Chassis_Control_Task(&chassis_m,&imu);
+        Chassis_Control_Task(&chassis_m,motor_period_s);
         VOFA_JustFloat(NULL, 13, IMU_Data.pitch, IMU_Data.roll,imu.yaw,IMU_Data.temp,
             IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2],
-            IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],
-            ins_time.cost_us,imu_period_s);
+            IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],imu_period_s);
     }
 }
 
 // 自定义任务1 1000Hz
+static uint32_t TASK1_DWT_Count = 0;
+static float TASK1_Period_S = 0.0f;
 void StartTask01(void *argument)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xTimeIncrement = pdMS_TO_TICKS(1);//绝对延时1ms
+
+    TASK1_DWT_Count = DWT->CYCCNT;
     for(;;)
     {
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
+
+        TASK1_Period_S = DWT_GetDeltaT(&TASK1_DWT_Count);
         //在这里加代码
     }
 }
 
 // 自定义任务2 1000Hz
+static uint32_t TASK2_DWT_Count = 0;
+static float TASK2_Period_S = 0.0f;
 void StartTask02(void *argument)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xTimeIncrement = pdMS_TO_TICKS(1);//绝对延时1ms
+    TASK2_DWT_Count = DWT->CYCCNT;
     for(;;)
     {
         vTaskDelayUntil(&xLastWakeTime, xTimeIncrement);
+
+        TASK2_Period_S = DWT_GetDeltaT(&TASK2_DWT_Count);
         //在这里加代码
     }
 }

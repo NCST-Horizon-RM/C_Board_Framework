@@ -116,11 +116,10 @@ uint8_t Chassis_Control_Init(void)
 /**
  * @brief 底盘控制任务
  */
-void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor,
-                          const IMU_Data_t *c_imu)
+void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, float dt)
 {
     // 空指针保护
-    if (c_motor == NULL || c_imu == NULL) {
+    if (c_motor == NULL) {
         System_State_Report(ID_CHASSIS, STATUS_ERROR);
         return;
     }
