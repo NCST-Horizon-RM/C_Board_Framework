@@ -37,7 +37,7 @@ IMU_Data_t IMU_Data = {
     .accel_scale = {1.0f, 1.0f, 1.0f}
 };
 
-static const PID_Params_t base_pid = {400.0f, 0.45f, 0.0f};
+static const PID_Params_t base_pid = {400.0f, 0.75f, 0.0f};
 static PID_Params_t current_pid;
 static uint32_t temp_stable_tick = 0;// 温度稳定计时起点
 static uint16_t imu_pid_cnt      = 0;//PID控制计数器，用于10ms分频执行PID计算
@@ -63,7 +63,7 @@ void IMU_Temp_Control_Init(void)
 {
     BSP_PWM_Start(&imu_heater_pwm);
     // 初始化PID控制器
-    PID_Init(&imu_temp,1000.0f,250.0f,(float*)&base_pid,
+    PID_Init(&imu_temp,1000.0f,350.0f,(float*)&base_pid,
              7.5f,0.0f,0.0f,0.0f,0,
              Trapezoid_Intergral |ChangingIntegrationRate |
              Derivative_On_Measurement |DerivativeFilter |
@@ -71,7 +71,7 @@ void IMU_Temp_Control_Init(void)
     imu_temp.FuzzyRule = NULL;
     // 初始化模糊规则参数
     Fuzzy_Rule_Init(&fuzzy_rule_temp, NULL, NULL, NULL,
-        -75.0f, -0.35f, 0.0f, // Kp, Ki, Kd Ratios
+        -75.0f, -0.45f, 0.0f, // Kp, Ki, Kd Ratios
         1.5f,0.125f);
     current_pid = base_pid;
 }
@@ -121,7 +121,8 @@ void IMU_Update_Task(IMU_Data_t *IMU,float dt_s)
             System_State_Report(ID_IMU,STATUS_INIT);
 #ifdef DEBUG_MODE
             //DEBUG模式，不跳过状态
-            imu_ctrl_state = TEMP_PID_CTRL;
+            //imu_ctrl_state = TEMP_PID_CTRL;
+            imu_ctrl_state = GYRO_CALIB;
 #endif
 #ifdef RELEASE_MODE
             //Release模式，直接跳到零漂校准，节省时间

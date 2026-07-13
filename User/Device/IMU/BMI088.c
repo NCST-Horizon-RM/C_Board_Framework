@@ -158,7 +158,7 @@ uint8_t BMI088_Init(void) {
 
     BMI088_Filter_Init(1000,40,100); // 初始化滤波器
 
-    return 0;
+    return 1;
 }
 
 void BMI088_SetFormat(AccelODR_t a_odr, AccelFS_t a_fsr, GyroODR_BW_t g_odr_bw, GyroFS_t g_fsr) {
