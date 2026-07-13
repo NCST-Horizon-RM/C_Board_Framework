@@ -45,12 +45,16 @@ void Buzzer_Off(void)
 
 void Buzzer_Set_Freq(uint16_t frequency_hz)
 {
-    if (frequency_hz == 0) {
+    if (frequency_hz == 0)
+    {
         Buzzer_Off();
-    } else {
-        // 基于 TIM12 1MHz 计数时钟
+    }
+    else
+    {
+        //基于 TIM12 1MHz 计数时钟
         uint32_t arr = 1000000 / frequency_hz - 1;
         uint32_t ccr = (arr + 1) / 2; // 50% 占空比
         BSP_PWM_Set_Autoreload_Immediate(&buzzer_pwm, arr, ccr);
+        //        Buzzer_Off();
     }
 }
