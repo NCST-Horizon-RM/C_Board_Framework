@@ -32,7 +32,7 @@ uint8_t Shoot_Control_Init(void)
     shoot_ctrl.dir_sign = -1;//拨盘旋向为反
     shoot_ctrl.Feeder_Count.target_freq = 18;//目标弹频
 
-    shoot_ctrl.Lfire_speed = 7000.0f;//左摩擦轮目标转速
+    shoot_ctrl.Lfire_speed = -7000.0f;//左摩擦轮目标转速
     shoot_ctrl.Rfire_speed = 7000.0f;//右摩擦轮目标转速
 
     shoot_ctrl.Counts_Shoot=shoot_ctrl.motor_ratio * shoot_ctrl.feed_ratio * 8192.0f / shoot_ctrl.slot_num;//计算拨盘每一发需要的编码器值
@@ -44,11 +44,11 @@ uint8_t Shoot_Control_Init(void)
     PID_Init(&shoot_ctrl.Bmotor_S, 30.0f, 2.0f, PID_Bmotor_S,
              0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     //两个摩擦轮 PID参数初始化
-    float PID_Lfire_S[3] = {0.0f,   0.0f,  0.0f};
-    PID_Init(&shoot_ctrl.Lfire_S, 50.0f, 30.0f, PID_Lfire_S,
+    float PID_Lfire_S[3] = {10.0f,   0.0f,  0.0f};
+    PID_Init(&shoot_ctrl.Lfire_S, 16384.0f, 1000.0f, PID_Lfire_S,
         0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
-    float PID_Rfire_S[3] = {0.0f,   0.0f,   0.0f};
-    PID_Init(&shoot_ctrl.Rfire_S, 30.0f, 2.0f, PID_Rfire_S,
+    float PID_Rfire_S[3] = {10.0f,   0.0f,   0.0f};
+    PID_Init(&shoot_ctrl.Rfire_S, 16384.0f, 1000.0f, PID_Rfire_S,
              0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     //向系统下发发射当前状态，准备中
     System_State_Report(ID_SHOOT, STATUS_PREPARING);
@@ -187,8 +187,8 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
         smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;;
     }
 
-    shoot_ctrl.Lfire_S.Ref=cmd.lfriction_rpm;
-    shoot_ctrl.Rfire_S.Ref=cmd.rfriction_rpm;
+    shoot_ctrl.Lfire_S.Ref=shoot_ctrl.Lfire_speed;
+    shoot_ctrl.Rfire_S.Ref=shoot_ctrl.Rfire_speed;
     shoot_ctrl.Bmotor_P.Ref=smooth_ref;
     //pid计算与can发送
     PID_Calculate(&shoot_ctrl.Lfire_S, g_motor->DJI_3508_L.Speed_now, shoot_ctrl.Lfire_S.Ref);
