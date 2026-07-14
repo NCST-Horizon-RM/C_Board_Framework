@@ -27,28 +27,28 @@ uint8_t Shoot_Control_Init(void)
 {
     shoot_ctrl.motor_ratio = 36.0f;//拨盘电机减速比
     shoot_ctrl.feed_ratio = 2.5f;//拨盘齿轮减速比
-    shoot_ctrl.slot_num = 8.0f;//拨盘一圈弹槽数量
+    shoot_ctrl.slot_num = 9.0f;//拨盘一圈弹槽数量
     shoot_ctrl.use_smoothing = 0;//不开启平滑连发
     shoot_ctrl.dir_sign = -1;//拨盘旋向为反
     shoot_ctrl.Feeder_Count.target_freq = 18;//目标弹频
 
-    shoot_ctrl.Lfire_speed = -7000.0f;//左摩擦轮目标转速
-    shoot_ctrl.Rfire_speed = 7000.0f;//右摩擦轮目标转速
+    shoot_ctrl.Lfire_speed = -6500.0f;//左摩擦轮目标转速
+    shoot_ctrl.Rfire_speed = 6500.0f;//右摩擦轮目标转速
 
     shoot_ctrl.Counts_Shoot=shoot_ctrl.motor_ratio * shoot_ctrl.feed_ratio * 8192.0f / shoot_ctrl.slot_num;//计算拨盘每一发需要的编码器值
     // 拨盘电机PID参数初始化
-    float PID_Bmotor_P[3] = {0.0f,   0.0f,  0.0f};
-    PID_Init(&shoot_ctrl.Bmotor_P, 50.0f, 30.0f, PID_Bmotor_P,
+    float PID_Bmotor_P[3] = {0.23f,   0.0f,  0.0f};
+    PID_Init(&shoot_ctrl.Bmotor_P, 20000.0f, 30.0f, PID_Bmotor_P,
         0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
-    float PID_Bmotor_S[3] = {0.0f,   0.0f,   0.0f};
-    PID_Init(&shoot_ctrl.Bmotor_S, 30.0f, 2.0f, PID_Bmotor_S,
+    float PID_Bmotor_S[3] = {15.0f,   0.0f,   0.0f};
+    PID_Init(&shoot_ctrl.Bmotor_S, 8000.0f, 2.0f, PID_Bmotor_S,
              0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     //两个摩擦轮 PID参数初始化
     float PID_Lfire_S[3] = {10.0f,   0.0f,  0.0f};
-    PID_Init(&shoot_ctrl.Lfire_S, 16384.0f, 1000.0f, PID_Lfire_S,
+    PID_Init(&shoot_ctrl.Lfire_S, 16000.0f, 1000.0f, PID_Lfire_S,
         0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     float PID_Rfire_S[3] = {10.0f,   0.0f,   0.0f};
-    PID_Init(&shoot_ctrl.Rfire_S, 16384.0f, 1000.0f, PID_Rfire_S,
+    PID_Init(&shoot_ctrl.Rfire_S, 16000.0f, 1000.0f, PID_Rfire_S,
              0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     //向系统下发发射当前状态，准备中
     System_State_Report(ID_SHOOT, STATUS_PREPARING);
@@ -125,7 +125,7 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
                dt, &shoot_ctrl.Det_Count);
 
     // 根据剩余热量计算动态弹频
-    shoot_ctrl.Feeder_Count.target_freq = Heat_Freq_Ctrl(0.1f,NULL,bullet_fired,dt,18);
+    shoot_ctrl.Feeder_Count.target_freq = Heat_Freq_Ctrl(0.4f,cmd.heat_max,cmd.heat_now,cmd.cool,bullet_fired,dt,18);
 
 //包含摩擦轮是否开启
     if (cmd.mode == SHOOT_CMD_SAFE)
@@ -137,68 +137,70 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
     if (cmd.mode == SHOOT_CMD_READY)
     {
         DJI_Motor_Send(&hcan2,0x200,0,0,0,0);
+        shoot_ctrl.Bmotor_P.Ref = smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;
     }
-    if (!is_init)
-    {
-        smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;
-        shoot_ctrl.Feeder_Count.target_pos_cnt=(int32_t)ceilf(smooth_ref / shoot_ctrl.Counts_Shoot - 0.1f);
-        is_init = true;
-    }
-    //连发模式同时已经开启摩擦轮
-    if (cmd.mode == SHOOT_CMD_FIRE)
-    {
-        Smooth_Shoot_Control();
-    }
-    //TODO：卡弹检测
-    //单发
-    // 统一射击触发判定
-    uint32_t now = HAL_GetTick();
-    float interval = 1000.0f / shoot_ctrl.Feeder_Count.target_freq;
-    if (cmd.mode == SHOOT_CMD_FIRE)
-    {
-        if (now - last_shot_time >= (uint32_t)interval) {
-            shoot_ctrl.Feeder_Count.target_pos_cnt ++;
-            last_shot_time = now;
-        }
-    }
-    // 统一目标计算与运动平滑控制 (Ramp 阶跃生成器)
-    float final_target = (float)shoot_ctrl.Feeder_Count.target_pos_cnt * shoot_ctrl.Counts_Shoot * (float)shoot_ctrl.dir_sign;
-    //连发
-    if (shoot_ctrl.use_smoothing ==1)//使用平滑模式
-    {
-        float step = (shoot_ctrl.Feeder_Count.target_freq * shoot_ctrl.Counts_Shoot) * dt;
-
-        if (smooth_ref > final_target)
-        {
-            smooth_ref -= step;
-            if (smooth_ref < final_target) smooth_ref = final_target;
-        } else if (smooth_ref < final_target)
-        {
-            smooth_ref += step;
-            if (smooth_ref > final_target) smooth_ref = final_target;
-        }
-    }
-    else if(shoot_ctrl.use_smoothing ==0)
-    {
-        smooth_ref = final_target;
-    }
-    else
-    {
-        smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;;
-    }
-
-    shoot_ctrl.Lfire_S.Ref=shoot_ctrl.Lfire_speed;
-    shoot_ctrl.Rfire_S.Ref=shoot_ctrl.Rfire_speed;
-    shoot_ctrl.Bmotor_P.Ref=smooth_ref;
-    //pid计算与can发送
-    PID_Calculate(&shoot_ctrl.Lfire_S, g_motor->DJI_3508_L.Speed_now, shoot_ctrl.Lfire_S.Ref);
-    PID_Calculate(&shoot_ctrl.Rfire_S, g_motor->DJI_3508_R.Speed_now, shoot_ctrl.Rfire_S.Ref);
-    PID_Calculate(&shoot_ctrl.Bmotor_P, g_motor->DJI_2006_bo.Angle_Infinite, shoot_ctrl.Bmotor_P.Ref);
-    PID_Calculate(&shoot_ctrl.Bmotor_S, g_motor->DJI_2006_bo.Speed_now, shoot_ctrl.Bmotor_P .Output);
     if (cmd.mode == SHOOT_CMD_RUN || cmd.mode == SHOOT_CMD_FIRE) {
+        if (!is_init)
+        {
+            smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;
+            shoot_ctrl.Feeder_Count.target_pos_cnt=(int32_t)ceilf(smooth_ref / shoot_ctrl.Counts_Shoot - 0.1f);
+            is_init = true;
+        }
+        //连发模式同时已经开启摩擦轮
+        if (cmd.mode == SHOOT_CMD_FIRE)
+        {
+            Smooth_Shoot_Control();
+        }
+        //TODO：卡弹检测
+        //单发
+        // 统一射击触发判定
+        uint32_t now = HAL_GetTick();
+        float interval = 1000.0f / shoot_ctrl.Feeder_Count.target_freq;
+        if (cmd.mode == SHOOT_CMD_FIRE)
+        {
+            if (now - last_shot_time >= (uint32_t)interval) {
+                shoot_ctrl.Feeder_Count.target_pos_cnt ++;
+                last_shot_time = now;
+            }
+        }
+        // 统一目标计算与运动平滑控制 (Ramp 阶跃生成器)
+        float final_target = (float)shoot_ctrl.Feeder_Count.target_pos_cnt * shoot_ctrl.Counts_Shoot * (float)shoot_ctrl.dir_sign;
+        //连发
+        if (shoot_ctrl.use_smoothing ==1)//使用平滑模式
+        {
+            float step = (shoot_ctrl.Feeder_Count.target_freq * shoot_ctrl.Counts_Shoot) * dt;
+
+            if (smooth_ref > final_target)
+            {
+                smooth_ref -= step;
+                if (smooth_ref < final_target) smooth_ref = final_target;
+            } else if (smooth_ref < final_target)
+            {
+                smooth_ref += step;
+                if (smooth_ref > final_target) smooth_ref = final_target;
+            }
+        }
+        else if(shoot_ctrl.use_smoothing ==0)
+        {
+            smooth_ref = final_target;
+        }
+        else
+        {
+            smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;;
+        }
+
+        shoot_ctrl.Lfire_S.Ref=shoot_ctrl.Lfire_speed;
+        shoot_ctrl.Rfire_S.Ref=shoot_ctrl.Rfire_speed;
+        shoot_ctrl.Bmotor_P.Ref=smooth_ref;
+        //pid计算与can发送
+        PID_Calculate(&shoot_ctrl.Lfire_S, g_motor->DJI_3508_L.Speed_now, shoot_ctrl.Lfire_S.Ref);
+        PID_Calculate(&shoot_ctrl.Rfire_S, g_motor->DJI_3508_R.Speed_now, shoot_ctrl.Rfire_S.Ref);
+        PID_Calculate(&shoot_ctrl.Bmotor_P, g_motor->DJI_2006_bo.Angle_Infinite, shoot_ctrl.Bmotor_P.Ref);
+        PID_Calculate(&shoot_ctrl.Bmotor_S, g_motor->DJI_2006_bo.Speed_now, shoot_ctrl.Bmotor_P .Output);
+
         DJI_Motor_Send(&hcan2,0x200,shoot_ctrl.Lfire_S.Output,shoot_ctrl.Rfire_S.Output,0,0);
+        DJI_Motor_Send(&hcan1,0x200,0,0,shoot_ctrl.Bmotor_S.Output,0 );
     }
-    DJI_Motor_Send(&hcan1,0x200,0,0,shoot_ctrl.Bmotor_S.Output,0 );
 }
 /**
  * @brief  动态 dt 射击检测函数
@@ -290,24 +292,21 @@ bool Update_Shoot_Det_Dynamic(float speed1, float speed2, float dt, ShootDet_t *
  * @param  max_freq     最大允许发弹频率 (单位: Hz)
  * @return float        经过热量限制及幅值控制后的最终目标发弹频率 (单位: Hz)
  */
-float Heat_Freq_Ctrl(float kp, Referee_Data_t *referee, bool is_shot, float dt, float max_freq) {
+float Heat_Freq_Ctrl(float kp, float heat_max,float heat_now,float cool, bool is_shot, float dt, float max_freq) {
     static float internal_heat = 0.0f;
     static float target_freq = 0.0f;
     // 累计热量计算
     if (is_shot) {
         internal_heat += 10.0f;
     }
-    // 热量上限限幅
-    float max_heat = (float)referee->robot_status.shooter_barrel_heat_limit;
-    internal_heat = MATH_Limit_float(max_heat, 0.0f, internal_heat);
     // 减去枪口冷却
-    internal_heat -= referee->robot_status.shooter_barrel_cooling_value * dt;
+    internal_heat -= cool * dt;
     // 与裁判系统数据融合校准
-    if (internal_heat < referee->power_heat_data.shooter_17mm_barrel_heat) {
-        internal_heat = (float)referee->power_heat_data.shooter_17mm_barrel_heat;
+    if (internal_heat < heat_now) {
+        internal_heat = heat_now;
     }
     // 根据剩余热量动态计算安全射频
-    target_freq = kp * (max_heat - internal_heat - 30.0f);// 预留30热量余量防止控不住
+    target_freq = kp * (heat_max - internal_heat - 10.0f);// 预留30热量余量防止控不住
     // 限制最大射频上限
     return MATH_Limit_float(max_freq, 0.0f, target_freq);
 }

@@ -91,8 +91,12 @@ uint8_t Chassis_Control_Init(void)
             0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     }
     // 底盘跟随PID初始化
-    float PID_Chassis_Follow[3] = {12.0f,   0.0f,   0.0f};
-    PID_Init(&chassis_ctrl.Follow, 20.0f, 2.0f, PID_Chassis_Follow,
+    float PID_Follow_Pos[3] = {18.0f,   0.0f,   0.0f};
+    PID_Init(&chassis_ctrl.Follow_Pos, 15.0f, 0.0f, PID_Follow_Pos,
+             0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
+
+    float PID_Follow_Spd[3] = {1.5f,   0.0f,   0.0f};
+    PID_Init(&chassis_ctrl.Follow_Spd, 15.0f, 1.0f, PID_Follow_Spd,
              0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     // 功率控制初始化及参数配置
     Power_Ctrl_Init(&chassis_model);
@@ -116,7 +120,7 @@ uint8_t Chassis_Control_Init(void)
 /**
  * @brief 底盘控制任务
  */
-void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, float dt)
+void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, const IMU_Data_t *imu, float dt)
 {
     // 空指针保护
     if (c_motor == NULL) {
@@ -146,7 +150,8 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, float dt)
             PID_Clear(&chassis_ctrl.Drive_S[i]);
             chassis_ctrl.Drive_S[i].Output = 0.0f;
         }
-        PID_Clear(&chassis_ctrl.Follow);
+        PID_Clear(&chassis_ctrl.Follow_Pos);
+        PID_Clear(&chassis_ctrl.Follow_Spd);
         // 清空斜坡函数
         cur_vx_gimbal = 0.0f;
         cur_vy_gimbal = 0.0f;
@@ -157,7 +162,9 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, float dt)
         float vw_tar = cmd.target_vw;
         // 底盘跟随模式下，计算底盘跟随PID
         if (cmd.mode == CHASSIS_CMD_FOLLOW) {
-            vw_tar = PID_Calculate(&chassis_ctrl.Follow, cmd.offset_angle, 0.0f);
+            PID_Calculate(&chassis_ctrl.Follow_Pos, cmd.offset_angle, 0.0f);
+
+            vw_tar = PID_Calculate(&chassis_ctrl.Follow_Spd, imu->gyro[2], chassis_ctrl.Follow_Pos.Output + 2.0f * cmd.target_vw);
         }
         // 非对称梯形加减速
         cur_vx_gimbal = Ramp_Calc(cmd.target_vx, cur_vx_gimbal, 0.004f, 0.1f);
@@ -182,10 +189,18 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, float dt)
         }
         bool trigger_discharge = cmd.is_cap_on;// 输入电容开启标志
         float cap_board_limit = 0.0f;
-        float final_limit = Chassis_Power_Arbitrator(
-                                chassis_referee.robot_status.chassis_power_limit,
-                                chassis_referee.power_heat_data.buffer_energy,
-                                1, &local_cap_data, &trigger_discharge, &cap_board_limit);
+        float final_limit = 0.0f;
+        if (chassis_referee.offline.is_online) {
+            final_limit = Chassis_Power_Arbitrator(
+                                    chassis_referee.robot_status.chassis_power_limit,
+                                    chassis_referee.power_heat_data.buffer_energy,
+                                    1, &local_cap_data, &trigger_discharge, &cap_board_limit);
+        }
+        else {
+            trigger_discharge = FALSE;
+            cap_board_limit = 45.0f;
+            final_limit = 75.0f;
+        }
         Power_Ctrl_Calculate(&chassis_model, final_limit, pwr_groups, 1);
         for(int i = 0; i < 4; i++) {
             chassis_ctrl.Drive_S[i].Output = m_states[i].limited_cmd;

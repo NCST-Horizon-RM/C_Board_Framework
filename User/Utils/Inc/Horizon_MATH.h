@@ -23,7 +23,7 @@ float Hex_To_Float(uint32_t *Byte,int num);
 uint32_t FloatTohex(float HEX);
 int float_to_uint(float x_float, float x_min, float x_max, int bits);
 float uint_to_float(int x_int, float x_min, float x_max, int bits);
-
+int32_t Float_To_Bitfield_Signed(float val, float scale, uint8_t bits);
 float ARM_Atan2_Fast(float y, float x);
 float ARM_Sin_Fast(float angle_deg);
 float ARM_Cos_Fast(float angle_deg);

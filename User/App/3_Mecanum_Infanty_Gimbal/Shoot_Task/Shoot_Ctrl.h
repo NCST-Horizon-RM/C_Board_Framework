@@ -69,6 +69,6 @@ void Smooth_Shoot_Control(void);
 #define TIMEOUT_DURATION  (14.0f * BASE_DT)      // 超时时间
 #define COOLDOWN_DURATION (2.0f * BASE_DT)       // 冷却时间
 bool Update_Shoot_Det_Dynamic(float speed1, float speed2, float dt, ShootDet_t *det);
-float Heat_Freq_Ctrl(float kp, Referee_Data_t *referee, bool is_shot, float dt, float max_freq);
+float Heat_Freq_Ctrl(float kp, float heat_max,float heat_now,float cool, bool is_shot, float dt, float max_freq);
 
 #endif //SHOOT_CTRL_H

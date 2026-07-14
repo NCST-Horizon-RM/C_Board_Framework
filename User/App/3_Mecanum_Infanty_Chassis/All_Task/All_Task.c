@@ -100,7 +100,7 @@ void Motor_Task(void *argument)
         if (c_motor_sub) SubGetMessage(c_motor_sub, &chassis_m);
         if (g_motor_sub) SubGetMessage(g_motor_sub, &gimbal_m);
         
-        Chassis_Control_Task(&chassis_m,motor_period_s);
+        Chassis_Control_Task(&chassis_m,&imu,motor_period_s);
         VOFA_JustFloat(NULL, 13, IMU_Data.pitch, IMU_Data.roll,imu.yaw,IMU_Data.temp,
             IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2],
             IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],imu_period_s);

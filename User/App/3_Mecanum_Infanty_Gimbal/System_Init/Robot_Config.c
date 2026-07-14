@@ -16,7 +16,7 @@
 
 Gimbal_Motor_Group_t  gimbal_motors;
 Shoot_Motor_Group_t   shoot_motors;
-UART_RX_NODE(&huart6, 21, VT13_RX_DATA, NULL, 21, &VT13, VT13_Resolved);
+UART_RX_NODE(&huart6, 921600, 21, VT13_RX_DATA, NULL, 21, &VT13, VT13_Resolved);
 OFFLINE_NODE(&VT13.offline, DBUS_OFFLINE_TIME, GROUP_NONE);
 
 CAN_RX_NODE(CAN1, 0x232, &b2b_rx_data, DualBoard_CAN_Rx_Callback);
