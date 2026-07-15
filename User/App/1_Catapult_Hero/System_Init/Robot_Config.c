@@ -18,7 +18,7 @@ Shoot_Motor_Group_t   shoot_motors;
 
 BSP_PWM_t trigger_pwm = {&htim4, TIM_CHANNEL_2, PWM_CHANNEL_NORMAL};
 
-UART_RX_NODE(&huart3, 18, DBUS_RX_DATA, NULL, 18, &DBUS, DBUS_Resolved);
+UART_RX_NODE(&huart3,100000 ,18, DBUS_RX_DATA, NULL, 18, &DBUS, DBUS_Resolved);
 OFFLINE_NODE(&DBUS.offline, DBUS_OFFLINE_TIME, GROUP_NONE);
 
 CAN_RX_NODE(CAN1, 0x201, &chassis_motors.DJI_3508_Chassis[0], DJI_Motor_Resolve);
