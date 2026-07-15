@@ -10,6 +10,7 @@
 #include "VT13.h"
 #include "DBUS.h"
 #include "Referee.h"
+#include "Vofa.h"
 //TODO:发射部分待完成
 static Shoot_Ctrl_Block_t shoot_ctrl;
 //订阅消息
@@ -138,6 +139,7 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
     {
         DJI_Motor_Send(&hcan2,0x200,0,0,0,0);
         shoot_ctrl.Bmotor_P.Ref = smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;
+        shoot_ctrl.Feeder_Count.target_pos_cnt = (int32_t)ceilf(smooth_ref / (shoot_ctrl.Counts_Shoot) - 0.1f);
     }
     if (cmd.mode == SHOOT_CMD_RUN || cmd.mode == SHOOT_CMD_FIRE) {
         if (!is_init)
@@ -152,14 +154,24 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
             Smooth_Shoot_Control();
         }
         //TODO：卡弹检测
-        //单发
         // 统一射击触发判定
         uint32_t now = HAL_GetTick();
         float interval = 1000.0f / shoot_ctrl.Feeder_Count.target_freq;
         if (cmd.mode == SHOOT_CMD_FIRE)
         {
             if (now - last_shot_time >= (uint32_t)interval) {
-                shoot_ctrl.Feeder_Count.target_pos_cnt ++;
+                float current_target_angle = (float)shoot_ctrl.Feeder_Count.target_pos_cnt * shoot_ctrl.Counts_Shoot * (float)shoot_ctrl.dir_sign;
+                float angle_error = fabsf(current_target_angle - g_motor->DJI_2006_bo.Angle_Infinite);
+                // 只有当误差小于1.5发弹丸的角度时，才允许下发新的发弹指令
+                if (angle_error < (1.1f * shoot_ctrl.Counts_Shoot)) {
+                    shoot_ctrl.Feeder_Count.target_pos_cnt ++;
+                }
+                else {
+                    System_State_Report(ID_SHOOT, STATUS_ERROR);
+                    shoot_ctrl.Bmotor_P.Ref = smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;
+                    shoot_ctrl.Feeder_Count.target_pos_cnt = (int32_t)ceilf(smooth_ref / (shoot_ctrl.Counts_Shoot) - 0.1f);
+                    DJI_Motor_Send(&hcan1,0x200,0,0,0,0);
+                }
                 last_shot_time = now;
             }
         }
@@ -201,6 +213,8 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
         DJI_Motor_Send(&hcan2,0x200,shoot_ctrl.Lfire_S.Output,shoot_ctrl.Rfire_S.Output,0,0);
         DJI_Motor_Send(&hcan1,0x200,0,0,shoot_ctrl.Bmotor_S.Output,0 );
     }
+    shoot_ctrl.Feeder_Count.target_freq = Heat_Freq_Ctrl(0.4f,cmd.heat_max,cmd.heat_now,cmd.cool,bullet_fired,dt,18);
+    VOFA_JustFloat(&huart1, 5, cmd.heat_max,cmd.heat_now,cmd.cool,bullet_fired);
 }
 /**
  * @brief  动态 dt 射击检测函数

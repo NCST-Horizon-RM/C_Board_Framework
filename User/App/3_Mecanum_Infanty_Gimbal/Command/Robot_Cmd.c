@@ -138,7 +138,7 @@ static void Cmd_Update_Remote_Ctrl(void)
     chassis_cmd.offset_angle = (float)relative_angle * ENCODER_TO_RAD;
     chassis_cmd.target_vx = (float)vt13_data.Remote.Channel [1] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vy = -(float)vt13_data.Remote.Channel[0] * RC_ROCKER_XY_COEF;
-    chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_XY_COEF;
+    chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_VW_COEF;
     //云台
     gimbal_cmd.target_yaw_rate = -(float)vt13_data.Remote.Channel [3]*RC_YAW_COEF;
     gimbal_cmd.target_yaw += gimbal_cmd.target_yaw_rate;

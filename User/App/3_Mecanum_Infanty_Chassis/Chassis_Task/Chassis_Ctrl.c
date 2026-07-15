@@ -41,7 +41,7 @@ static float Chassis_Power_Arbitrator(float base_power_limit,
  * @param  dec_step    减速最大步长 (绝对值)
  * @return float       经过限制的当前值
  */
-static float Ramp_Calc(float target, float current, float acc_step, float dec_step)
+static float Ramp_Calc(float target, float current, float acc_step, float dec_step, float dt)
 {
     float step = 0.0f;
     bool is_accelerating = false;
@@ -51,7 +51,7 @@ static float Ramp_Calc(float target, float current, float acc_step, float dec_st
     else if (current <= 0.0f && target < current) {
         is_accelerating = true;
     }
-    step = is_accelerating ? acc_step : dec_step;
+    step = is_accelerating ? acc_step * dt : dec_step * dt;
     if (target > current) {
         current += step;
         if (current > target) {
@@ -164,17 +164,17 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, const IMU_Data_t
         if (cmd.mode == CHASSIS_CMD_FOLLOW) {
             PID_Calculate(&chassis_ctrl.Follow_Pos, cmd.offset_angle, 0.0f);
 
-            vw_tar = PID_Calculate(&chassis_ctrl.Follow_Spd, imu->gyro[2], chassis_ctrl.Follow_Pos.Output + 2.0f * cmd.target_vw);
+            vw_tar = PID_Calculate(&chassis_ctrl.Follow_Spd, imu->gyro[2], chassis_ctrl.Follow_Pos.Output);
         }
         // 非对称梯形加减速
-        cur_vx_gimbal = Ramp_Calc(cmd.target_vx, cur_vx_gimbal, 0.004f, 0.1f);
-        cur_vy_gimbal = Ramp_Calc(cmd.target_vy, cur_vy_gimbal, 0.004f, 0.1f);
-        cur_vw        = Ramp_Calc(vw_tar,        cur_vw,        0.35f,  0.4f);
+        cur_vx_gimbal = Ramp_Calc(cmd.target_vx, cur_vx_gimbal, 5.0f, 100.0f,dt);
+        cur_vy_gimbal = Ramp_Calc(cmd.target_vy, cur_vy_gimbal, 5.0f, 100.0f,dt);
+        cur_vw        = Ramp_Calc(vw_tar,        cur_vw,        350.0f,  400.0f,dt);
         // 底盘坐标系旋转矩阵
         float cos_theta = arm_cos_f32(cmd.offset_angle);
         float sin_theta = arm_sin_f32(cmd.offset_angle);
-        float cur_vx_chassis = cur_vx_gimbal * cos_theta - cur_vy_gimbal * sin_theta;
-        float cur_vy_chassis = cur_vx_gimbal * sin_theta + cur_vy_gimbal * cos_theta;
+        float cur_vx_chassis = cur_vx_gimbal * cos_theta + cur_vy_gimbal * sin_theta;
+        float cur_vy_chassis = cur_vy_gimbal * cos_theta - cur_vx_gimbal * sin_theta;
         // 逆运动学与速度环 PID 计算
         float target_rpm[4] = {0};
         Mecanum_Calc(target_rpm, cur_vx_chassis, cur_vy_chassis, cur_vw, &chassis_ctrl.Mecanum);

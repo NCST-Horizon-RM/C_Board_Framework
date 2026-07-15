@@ -82,8 +82,8 @@ target_link_options(${CMAKE_PROJECT_NAME} PUBLIC
 )
 
 #set(ACTIVE_APP "1_Catapult_Hero")
-#set(ACTIVE_APP "3_Mecanum_Infanty_Chassis")
-set(ACTIVE_APP "3_Mecanum_Infanty_Gimbal")
+set(ACTIVE_APP "3_Mecanum_Infanty_Chassis")
+#set(ACTIVE_APP "3_Mecanum_Infanty_Gimbal")
 
 add_subdirectory(cmake/stm32cubemx)
 add_subdirectory(User/App/${ACTIVE_APP})

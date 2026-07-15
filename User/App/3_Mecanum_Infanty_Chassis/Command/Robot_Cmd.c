@@ -127,16 +127,14 @@ static void Cmd_Handle_Safe_Mode(void)
 static void Cmd_Update_Remote_Ctrl(void)
 {
     int16_t relative_angle = YAW_ZERO - gimbal_motors_data.DM4310_Yaw.Angle_now;
-    if (relative_angle > 4096) {relative_angle -= 8192;}
-    else if (relative_angle < -4096) {relative_angle += 8192;}
-    chassis_cmd.offset_angle = (float)relative_angle * ENCODER_TO_RAD;
+    chassis_cmd.offset_angle = normalize_to_pi((float)relative_angle * ENCODER_TO_RAD);;
 
-    chassis_cmd.target_vx = (float)(b2b_rx_data.bits.vx /100);
-    chassis_cmd.target_vy = (float)(b2b_rx_data.bits.vy /100);
+    chassis_cmd.target_vx = (float)b2b_rx_data.bits.vx * 0.01f;
+    chassis_cmd.target_vy = (float)b2b_rx_data.bits.vy * 0.01f;
     chassis_cmd.mode = CHASSIS_CMD_FOLLOW;
     if (b2b_rx_data.bits.vr != 0) {
         chassis_cmd.mode = CHASSIS_CMD_SPIN;
-        chassis_cmd.target_vw = (float)(b2b_rx_data.bits.vr /100);
+        chassis_cmd.target_vw = (float)b2b_rx_data.bits.vr /100.0f;
     }
     chassis_cmd.is_cap_on = true;
 }

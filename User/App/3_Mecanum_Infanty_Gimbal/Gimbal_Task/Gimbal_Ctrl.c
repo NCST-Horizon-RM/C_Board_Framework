@@ -94,7 +94,7 @@ void Gimbal_Control_Task(const Gimbal_Motor_Group_t *g_motor,const IMU_Data_t *g
         PID_Calculate(&gimbal_ctrl.Pitch_P,g_imu->pitch,cmd.target_pitch);
         PID_Calculate(&gimbal_ctrl.Pitch_S,g_imu->gyro[1],gimbal_ctrl.Pitch_P.Output + 3.5f*cmd.target_pitch_rate);
 
-        VOFA_JustFloat(&huart1, 5, virtual_target,g_imu->yaw,cmd.target_pitch,g_imu->pitch,0);
+
 
     }
 
