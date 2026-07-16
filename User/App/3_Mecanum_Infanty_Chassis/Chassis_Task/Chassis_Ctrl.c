@@ -148,7 +148,6 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, const IMU_Data_t
         // 清空PID
         for (int i = 0; i < 4; i++) {
             PID_Clear(&chassis_ctrl.Drive_S[i]);
-            chassis_ctrl.Drive_S[i].Output = 0.0f;
         }
         PID_Clear(&chassis_ctrl.Follow_Pos);
         PID_Clear(&chassis_ctrl.Follow_Spd);
@@ -163,7 +162,6 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, const IMU_Data_t
         // 底盘跟随模式下，计算底盘跟随PID
         if (cmd.mode == CHASSIS_CMD_FOLLOW) {
             PID_Calculate(&chassis_ctrl.Follow_Pos, cmd.offset_angle, 0.0f);
-
             vw_tar = PID_Calculate(&chassis_ctrl.Follow_Spd, imu->gyro[2], chassis_ctrl.Follow_Pos.Output);
         }
         // 非对称梯形加减速
@@ -198,7 +196,7 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, const IMU_Data_t
         }
         else {
             trigger_discharge = FALSE;
-            cap_board_limit = 45.0f;
+            cap_board_limit = 45.0f;//
             final_limit = 75.0f;
         }
         Power_Ctrl_Calculate(&chassis_model, final_limit, pwr_groups, 1);
@@ -261,7 +259,7 @@ static float Chassis_Power_Arbitrator(float base_power_limit,
         return final_target_power - 5.0f;
     }
     // 在线且正常状态下的 放电/充电 逻辑
-    if (boost_intent && cap_data->get.Cap_Capacity > MIN_CAP_VOLTAGE)
+    if (boost_intent && cap_data->get.Cap_Capacity > MIN_CAP_VOLTAGE && cap_data->get.offline.is_online == 1)
     {
         float boost_allowance = MAX_BOOST_POWER;
         // 斜坡衰减保护机制
@@ -273,12 +271,6 @@ static float Chassis_Power_Arbitrator(float base_power_limit,
         // 最终允许的底盘功率上限 = 基础可用功率 + 超电补偿功率
         final_target_power += boost_allowance;
         *out_discharge = true;
-    }
-    else
-    {
-        // 留 4W 功率给超级电容充电
-        final_target_power -= 4.0f;
-        *out_discharge = false;
     }
     return final_target_power; // 返回给电机的最终功率限制
 }

@@ -134,16 +134,27 @@ static void Cmd_Update_Remote_Ctrl(void)
     chassis_cmd.target_vy = -(float)vt13_data.Remote.Channel[0] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_VW_COEF;
     //云台
-    gimbal_cmd.target_yaw_rate = -(float)vt13_data.Remote.Channel [3]*RC_YAW_COEF;
-    gimbal_cmd.target_yaw += gimbal_cmd.target_yaw_rate;
-    gimbal_cmd.target_yaw = normalize_to_pi(gimbal_cmd.target_yaw * DEG2RAD) * RAD2DEG;
+    if (gimbal_cmd.mode = GIMBAL_CMD_MANUAL) {
+        gimbal_cmd.target_yaw_rate = -(float)vt13_data.Remote.Channel [3]*RC_YAW_COEF;
+        gimbal_cmd.target_yaw += gimbal_cmd.target_yaw_rate;
+        gimbal_cmd.target_yaw = normalize_to_pi(gimbal_cmd.target_yaw * DEG2RAD) * RAD2DEG;
 
-    gimbal_cmd.target_pitch_rate = (float)vt13_data.Remote.Channel [2]*RC_PITCH_COEF;
-    gimbal_cmd.target_pitch += gimbal_cmd.target_pitch_rate;
-    gimbal_cmd.target_pitch = MATH_Limit_float(31.0f,-13.0f,gimbal_cmd.target_pitch);
+        gimbal_cmd.target_pitch_rate = (float)vt13_data.Remote.Channel [2]*RC_PITCH_COEF;
+        gimbal_cmd.target_pitch += gimbal_cmd.target_pitch_rate;
+        gimbal_cmd.target_pitch = MATH_Limit_float(31.0f,-13.0f,gimbal_cmd.target_pitch);
+    }
+    if (gimbal_cmd.mode = GIMBAL_CMD_AUTO_AIM) {
+        gimbal_cmd.target_yaw_rate =0;
+        gimbal_cmd.target_yaw +=0;
+        gimbal_cmd.target_yaw = normalize_to_pi(gimbal_cmd.target_yaw * DEG2RAD) * RAD2DEG;
+
+        gimbal_cmd.target_pitch_rate = 0;
+        gimbal_cmd.target_pitch += 0;
+        gimbal_cmd.target_pitch = MATH_Limit_float(31.0f,-13.0f,gimbal_cmd.target_pitch);
+    }
+
     //发射
     shoot_cmd.mode = SHOOT_CMD_READY;
-    gimbal_cmd.mode = GIMBAL_CMD_MANUAL;
     shoot_cmd.heat_max = b2b_rx_data.bits.heat_large;
     shoot_cmd.heat_now = b2b_rx_data.bits.heat_last;
     shoot_cmd.cool = b2b_rx_data.bits.cooling;

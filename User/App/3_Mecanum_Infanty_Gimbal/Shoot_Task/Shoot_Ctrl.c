@@ -143,7 +143,7 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
         shoot_ctrl.Bmotor_P.Ref = smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;
         shoot_ctrl.Feeder_Count.target_pos_cnt = (int32_t)ceilf(smooth_ref / (shoot_ctrl.Counts_Shoot) - 0.1f);
     }
-    if (cmd.mode == SHOOT_CMD_RUN || cmd.mode == SHOOT_CMD_FIRE) {
+    if (cmd.mode == SHOOT_CMD_RUN) {
         if (!is_init)
         {
             smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;
@@ -161,7 +161,7 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
                 float angle_error = fabsf(current_target_angle - g_motor->DJI_2006_bo.Angle_Infinite);
                 // 只有当误差小于1.1发弹丸的角度时，才允许下发新的发弹指令
                 if (angle_error < (1.1f * shoot_ctrl.Counts_Shoot)) {
-                    shoot_ctrl.Feeder_Count.target_pos_cnt ++;
+                    shoot_ctrl.Feeder_Count.target_pos_cnt ++;////////
                 }
                 else {
                     System_State_Report(ID_SHOOT, STATUS_ERROR);
