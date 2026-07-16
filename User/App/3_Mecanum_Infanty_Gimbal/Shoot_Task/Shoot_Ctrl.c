@@ -126,7 +126,9 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
                dt, &shoot_ctrl.Det_Count);
 
     // 根据剩余热量计算动态弹频
-    shoot_ctrl.Feeder_Count.target_freq = Heat_Freq_Ctrl(0.4f,cmd.heat_max,cmd.heat_now,cmd.cool,bullet_fired,dt,18);
+    shoot_ctrl.Feeder_Count.target_freq = Heat_Freq_Ctrl(
+        0.4f,cmd.heat_max,cmd.heat_now,cmd.cool,
+        bullet_fired,dt,18,10);
 
 //包含摩擦轮是否开启
     if (cmd.mode == SHOOT_CMD_SAFE)
@@ -148,21 +150,16 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
             shoot_ctrl.Feeder_Count.target_pos_cnt=(int32_t)ceilf(smooth_ref / shoot_ctrl.Counts_Shoot - 0.1f);
             is_init = true;
         }
+        uint32_t now = HAL_GetTick();
+        float interval = 1000.0f / shoot_ctrl.Feeder_Count.target_freq;
         //连发模式同时已经开启摩擦轮
         if (cmd.mode == SHOOT_CMD_FIRE)
         {
             Smooth_Shoot_Control();
-        }
-        //TODO：卡弹检测
-        // 统一射击触发判定
-        uint32_t now = HAL_GetTick();
-        float interval = 1000.0f / shoot_ctrl.Feeder_Count.target_freq;
-        if (cmd.mode == SHOOT_CMD_FIRE)
-        {
             if (now - last_shot_time >= (uint32_t)interval) {
                 float current_target_angle = (float)shoot_ctrl.Feeder_Count.target_pos_cnt * shoot_ctrl.Counts_Shoot * (float)shoot_ctrl.dir_sign;
                 float angle_error = fabsf(current_target_angle - g_motor->DJI_2006_bo.Angle_Infinite);
-                // 只有当误差小于1.5发弹丸的角度时，才允许下发新的发弹指令
+                // 只有当误差小于1.1发弹丸的角度时，才允许下发新的发弹指令
                 if (angle_error < (1.1f * shoot_ctrl.Counts_Shoot)) {
                     shoot_ctrl.Feeder_Count.target_pos_cnt ++;
                 }
@@ -175,7 +172,7 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
                 last_shot_time = now;
             }
         }
-        // 统一目标计算与运动平滑控制 (Ramp 阶跃生成器)
+        // 统一目标计算与运动平滑控制
         float final_target = (float)shoot_ctrl.Feeder_Count.target_pos_cnt * shoot_ctrl.Counts_Shoot * (float)shoot_ctrl.dir_sign;
         //连发
         if (shoot_ctrl.use_smoothing ==1)//使用平滑模式
@@ -204,7 +201,7 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
         shoot_ctrl.Lfire_S.Ref=shoot_ctrl.Lfire_speed;
         shoot_ctrl.Rfire_S.Ref=shoot_ctrl.Rfire_speed;
         shoot_ctrl.Bmotor_P.Ref=smooth_ref;
-        //pid计算与can发送
+
         PID_Calculate(&shoot_ctrl.Lfire_S, g_motor->DJI_3508_L.Speed_now, shoot_ctrl.Lfire_S.Ref);
         PID_Calculate(&shoot_ctrl.Rfire_S, g_motor->DJI_3508_R.Speed_now, shoot_ctrl.Rfire_S.Ref);
         PID_Calculate(&shoot_ctrl.Bmotor_P, g_motor->DJI_2006_bo.Angle_Infinite, shoot_ctrl.Bmotor_P.Ref);
@@ -213,7 +210,6 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
         DJI_Motor_Send(&hcan2,0x200,shoot_ctrl.Lfire_S.Output,shoot_ctrl.Rfire_S.Output,0,0);
         DJI_Motor_Send(&hcan1,0x200,0,0,shoot_ctrl.Bmotor_S.Output,0 );
     }
-    shoot_ctrl.Feeder_Count.target_freq = Heat_Freq_Ctrl(0.4f,cmd.heat_max,cmd.heat_now,cmd.cool,bullet_fired,dt,18);
     VOFA_JustFloat(&huart1, 5, cmd.heat_max,cmd.heat_now,cmd.cool,bullet_fired);
 }
 /**
@@ -295,18 +291,21 @@ bool Update_Shoot_Det_Dynamic(float speed1, float speed2, float dt, ShootDet_t *
     }
     return shoot_done;
 }
-//TODO:火控待完善
+
 /**
- * @brief  基于前馈预测与裁判系统数据融合的枪口热量控制算法
- * @note   通过摩擦轮掉速前馈与裁判系统数据融合预测实时热量，并引入安全余量动态调整最大容许发弹频率
- * @param  kp           发弹频率控制的比例系数 (Proportional Gain)
- * @param  referee      裁判系统数据结构体指针
- * @param  is_shot      当前控制周期内是否检测到实弹射出
- * @param  dt           当前帧与上一帧的真实运行时间差 (单位: 秒)
+ * @brief  枪口热量控制
+ * @note   通过摩擦轮掉速检测与裁判系统数据融合计算实时热量，并引入安全余量动态调整最大容许发弹频率
+ * @param  kp           发弹频率控制的比例系数
+ * @param  heat_max     最大热量上限
+ * @param  heat_now     当前裁判系统反馈热量
+ * @param  cool         枪口冷却速度
+ * @param  is_shot      是否检测到弹丸射出
+ * @param  dt           当前帧与上一帧的运行时间差 (单位: 秒)
  * @param  max_freq     最大允许发弹频率 (单位: Hz)
+ * @param  remain_heat  剩余热量
  * @return float        经过热量限制及幅值控制后的最终目标发弹频率 (单位: Hz)
  */
-float Heat_Freq_Ctrl(float kp, float heat_max,float heat_now,float cool, bool is_shot, float dt, float max_freq) {
+float Heat_Freq_Ctrl(float kp, float heat_max,float heat_now,float cool, bool is_shot, float dt, float max_freq, float remain_heat) {
     static float internal_heat = 0.0f;
     static float target_freq = 0.0f;
     // 累计热量计算
@@ -320,7 +319,7 @@ float Heat_Freq_Ctrl(float kp, float heat_max,float heat_now,float cool, bool is
         internal_heat = heat_now;
     }
     // 根据剩余热量动态计算安全射频
-    target_freq = kp * (heat_max - internal_heat - 10.0f);// 预留30热量余量防止控不住
+    target_freq = kp * (heat_max - internal_heat - remain_heat);
     // 限制最大射频上限
     return MATH_Limit_float(max_freq, 0.0f, target_freq);
 }

@@ -50,8 +50,6 @@ typedef enum {
 
 typedef struct {
     Shoot_Mode_e mode;
-    float lfriction_rpm;      // 左摩擦轮目标转速
-    float rfriction_rpm;       //右摩擦轮目标转速
     bool trigger_single;     // 单发
     bool trigger_auto;       // 连发
     float heat_max;

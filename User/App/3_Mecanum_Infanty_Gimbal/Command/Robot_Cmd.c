@@ -119,8 +119,6 @@ static void Cmd_Handle_Safe_Mode(void)
     chassis_cmd.target_vy = 0.0f;
     chassis_cmd.target_vw = 0.0f;
 
-    shoot_cmd.lfriction_rpm   = 6307.0f;
-    shoot_cmd.rfriction_rpm   = -6337.0f;
     shoot_cmd.trigger_single = false;
     shoot_cmd.trigger_auto   = false;
     shoot_cmd.bullet_speed = 0.0f;
@@ -132,10 +130,6 @@ static void Cmd_Handle_Safe_Mode(void)
 static void Cmd_Update_Remote_Ctrl(void)
 {
     // 底盘
-    int16_t relative_angle = YAW_ZERO - gimbal_motors_data.DM4310_Yaw.Angle_now;
-    if (relative_angle > 4096) {relative_angle -= 8192;}
-    else if (relative_angle < -4096) {relative_angle += 8192;}
-    chassis_cmd.offset_angle = (float)relative_angle * ENCODER_TO_RAD;
     chassis_cmd.target_vx = (float)vt13_data.Remote.Channel [1] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vy = -(float)vt13_data.Remote.Channel[0] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_VW_COEF;
@@ -181,60 +175,48 @@ static void Cmd_Update_Mouse_Key(void)
 /**
  * @brief 双板数据同步逻辑
  */
-#define CLAMP(val, min, max) ((val) > (max) ? (max) : ((val) < (min) ? (min) : (val)))
 
 static void Cmd_DualBoard_Sync(void)
 {
-    // 1. 放大并四舍五入取整
+    // 放大并四舍五入取整
     int32_t int_vx = (int32_t)roundf(chassis_cmd.target_vx * 100.0f);
     int32_t int_vy = (int32_t)roundf(chassis_cmd.target_vy * 100.0f);
     int32_t int_vr = (int32_t)roundf(chassis_cmd.target_vw * 100.0f);
     int32_t int_pitch = (int32_t)roundf(imu_data.pitch);
 
-    // 2. 限幅保护（防止超出有符号位域的最大/最小值导致数据污染）
-    // 11位有符号范围: -1024 ~ 1023
-    // 5位有符号范围: -16 ~ 15
     int_vx = CLAMP(int_vx, -1024, 1023);
     int_vy = CLAMP(int_vy, -1024, 1023);
     int_vr = CLAMP(int_vr, -1024, 1023);
     int_pitch = CLAMP(int_pitch, -16, 15);
 
-    // 3. 【核心】强转为无符号并用掩码截取低位，保留原始补码的 Bit 状态
-    uint32_t u_vx    = (uint32_t)int_vx    & 0x07FF; // 截取低 11 位
-    uint32_t u_vy    = (uint32_t)int_vy    & 0x07FF; // 截取低 11 位
-    uint32_t u_vr    = (uint32_t)int_vr    & 0x07FF; // 截取低 11 位
-    uint32_t u_pitch = (uint32_t)int_pitch & 0x001F; // 截取低 5 位
+    uint32_t u_vx    = (uint32_t)int_vx    & 0x07FF;
+    uint32_t u_vy    = (uint32_t)int_vy    & 0x07FF;
+    uint32_t u_vr    = (uint32_t)int_vr    & 0x07FF;
+    uint32_t u_pitch = (uint32_t)int_pitch & 0x001F;
 
-    // 状态与开关量截取低位
     uint8_t k_q       = vt13_data.KeyBoard.Q      & 0x01;
     uint8_t k_e       = vt13_data.KeyBoard.E      & 0x01;
     uint8_t k_v       = vt13_data.KeyBoard.V      & 0x01;
     uint8_t k_shift   = vt13_data.KeyBoard.Shift  & 0x01;
     uint8_t k_ctrl    = vt13_data.KeyBoard.Ctrl   & 0x01;
-    uint8_t rc_online = vt13_data.offline.is_online & 0x03; // 2位
-    uint8_t rc_s1     = vt13_data.Remote.fn_1     & 0x03; // 2位
-    uint8_t rc_s2     = vt13_data.Remote.fn_2     & 0x03; // 2位
+    uint8_t rc_online = vt13_data.offline.is_online & 0x03;
+    uint8_t rc_s1     = vt13_data.Remote.fn_1     & 0x03;
+    uint8_t rc_s2     = vt13_data.Remote.fn_2     & 0x03;
     uint8_t f_wheel   = Is_Group_Online(SHOOT)    & 0x01;
     uint8_t g_lixian  = Is_Group_Online(GIMBAL)   & 0x01;
     uint8_t v_look    = 0 & 0x01;
     uint8_t vision    = 0 & 0x01;
     uint32_t surplus  = 0 & 0x01FF; // 9位
 
-    // 4. 纯手工按 Bit 拼接 8 字节流
     uint8_t temp_buf[8] = {0};
-
     // --- Byte 0 ---
     temp_buf[0] = (uint8_t)(u_vx & 0xFF);
-
     // --- Byte 1 ---
     temp_buf[1] = (uint8_t)(((u_vx >> 8) & 0x07) | ((u_vy << 3) & 0xF8));
-
     // --- Byte 2 ---
     temp_buf[2] = (uint8_t)(((u_vy >> 5) & 0x3F) | ((u_vr << 6) & 0xC0));
-
     // --- Byte 3 ---
     temp_buf[3] = (uint8_t)((u_vr >> 2) & 0xFF);
-
     // --- Byte 4 ---
     temp_buf[4] = (uint8_t)(((u_vr >> 10) & 0x01) |
                             (k_q << 1)            |
@@ -243,12 +225,10 @@ static void Cmd_DualBoard_Sync(void)
                             (k_shift << 4)        |
                             (k_ctrl << 5)         |
                             (rc_online << 6));
-
     // --- Byte 5 ---
     temp_buf[5] = (uint8_t)((rc_s1 & 0x03) |
                             ((rc_s2 & 0x03) << 2) |
                             ((u_pitch << 4) & 0xF0));
-
     // --- Byte 6 ---
     temp_buf[6] = (uint8_t)(((u_pitch >> 4) & 0x01) |
                             (f_wheel << 1)          |
@@ -256,11 +236,8 @@ static void Cmd_DualBoard_Sync(void)
                             (v_look << 3)           |
                             (vision << 4)           |
                             ((surplus << 5) & 0xE0));
-
     // --- Byte 7 ---
     temp_buf[7] = (uint8_t)((surplus >> 3) & 0x3F);
-
-    // 5. 复制给联合体并发送
     memcpy(b2b_tx_data.buf, temp_buf, 8);
     CAN_Send_Msg(&hcan1, 0x231, b2b_tx_data.buf, 8);
 }

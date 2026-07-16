@@ -8,6 +8,7 @@
 #define DF_READY 1
 #define DF_ERROR 0
 
+#define CLAMP(val, min, max) ((val) > (max) ? (max) : ((val) < (min) ? (min) : (val)))
 /// 圆周率
 #define PI 3.14159265358979f
 /// 角度转弧度
