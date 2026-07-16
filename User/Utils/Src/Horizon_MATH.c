@@ -151,6 +151,32 @@ float uint_to_float(int x_int, float x_min, float x_max, int bits)
 }
 
 /**
+ * @brief 将浮点数安全转换为有符号位域整数
+ * @param val      输入的浮点数
+ * @param scale    放大倍数（如 100.0f）
+ * @param bits     位域的位数（如 11）
+ * @return uint32_t/int32_t 处理后的无符号原始数据（可直接赋给位域）
+ */
+int32_t Float_To_Bitfield_Signed(float val, float scale, uint8_t bits)
+{
+    // 1. 放大并四舍五入取整
+    int32_t int_val = (int32_t)roundf(val * scale);
+
+    // 2. 计算当前位域能表示的最小值和最大值
+    // 例如 11 位有符号数范围是 -1024 ~ 1023
+    int32_t max_val = (1 << (bits - 1)) - 1;
+    int32_t min_val = -(1 << (bits - 1));
+
+    // 3. 限幅防溢出，防止破坏隔壁位域
+    if (int_val > max_val) int_val = max_val;
+    if (int_val < min_val) int_val = min_val;
+
+    // 4. 【核心】通过掩码只保留低 bits 位。
+    // 即使是负数，截断高位后在位域中也会被正确识别为补码负数
+    uint32_t mask = (1U << bits) - 1;
+    return (int32_t)(int_val & mask);
+}
+/**
  * @brief CORDIC Atan2 快速函数
  */
 inline float ARM_Atan2_Fast(float y, float x) {

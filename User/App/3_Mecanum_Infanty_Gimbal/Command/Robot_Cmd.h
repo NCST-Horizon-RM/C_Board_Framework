@@ -35,7 +35,9 @@ typedef enum {
 typedef struct {
     Gimbal_Mode_e mode;
     float target_pitch;      // 目标 Pitch 角度
+    float target_pitch_rate; // 目标 Pitch 角速度
     float target_yaw;        // 目标 Yaw 角度
+    float target_yaw_rate;   // 目标 Yaw 角速度
 } Gimbal_Cmd_t;
 
 // 发射机构控制指令
@@ -48,10 +50,11 @@ typedef enum {
 
 typedef struct {
     Shoot_Mode_e mode;
-    float lfriction_rpm;      // 左摩擦轮目标转速
-    float rfriction_rpm;       //右摩擦轮目标转速
     bool trigger_single;     // 单发
     bool trigger_auto;       // 连发
+    float heat_max;
+    float heat_now;
+    float cool;
     uint8_t last_fn1;
     uint8_t last_S1 ;
     uint8_t bullet_speed;    // 目标射速
@@ -77,29 +80,28 @@ typedef union {
 } Protocol_Rx_t;
 
 // 云台 -> 底盘
+typedef struct {
+    int16_t vx;
+    int16_t vy;
+    int16_t vr;
+    uint8_t key_q;
+    uint8_t key_e;
+    uint8_t key_v;
+    uint8_t key_shift;
+    uint8_t key_ctrl;
+    uint8_t romoteOnLine;
+    uint8_t S1;
+    uint8_t S2;
+    int8_t  pitch;
+    uint8_t fire_wheel;
+    uint8_t gimbal_lixian;
+    uint8_t vision_look;
+    uint8_t vision;
+    uint16_t surplus_count;
+} Logic_Tx_t;
+
+// 2. 通信用的数据联合体（干掉阴间位域，只留 8 字节数组）
 typedef union {
-    struct {
-        int16_t vx:11;		//平移速度
-        int16_t vy:11;		//前进速度
-        int16_t vr:11;		//旋转速度
-        uint16_t key_q:1;
-        uint16_t key_e:1;
-        uint16_t key_v:1;
-        uint16_t key_shift:1;
-        uint16_t key_ctrl:1;
-        uint16_t romoteOnLine	:2;	//遥控是否在线
-
-        uint16_t S1:2;
-        uint16_t S2:2;
-
-        int16_t pitch:5;			//陀螺仪
-        uint16_t fire_wheel:1;//发射是否离线
-        uint16_t gimbal_lixian:1;//云台是否离线
-
-        uint16_t vision_look:1;//视觉是否识别到目标
-        uint16_t vision:1;//是否开启视觉
-        uint32_t surplus_count:9;//预计剩余弹丸数量
-    } bits;
     uint8_t buf[8];
 } Protocol_Tx_t;
 #pragma pack()

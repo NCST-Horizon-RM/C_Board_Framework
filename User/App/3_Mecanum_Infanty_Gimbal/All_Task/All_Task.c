@@ -93,11 +93,7 @@ void Motor_Task(void *argument)
         if (s_motor_sub)  SubGetMessage(s_motor_sub, &shoot_m);
         
         Gimbal_Control_Task(&gimbal_m,&imu);
-        //Shoot_Control_Task(&shoot_m,motor_period_s);
-        VOFA_JustFloat(NULL, 13, IMU_Data.pitch, IMU_Data.roll,imu.yaw,IMU_Data.temp,
-            IMU_Data.accel[0],IMU_Data.accel[1],IMU_Data.accel[2],
-            IMU_Data.gyro[0],IMU_Data.gyro[1],IMU_Data.gyro[2],
-            ins_time.cost_us,imu_period_s);
+        Shoot_Control_Task(&shoot_m,motor_period_s);
     }
 }
 

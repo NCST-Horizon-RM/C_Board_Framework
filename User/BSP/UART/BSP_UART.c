@@ -12,7 +12,6 @@ void Auto_UART_Router_Init(void)
     const Auto_UART_Reg_t *node = &__start_UART_Reg_Sec;
     for (; node < &__stop_UART_Reg_Sec; node++)
     {
-        // 为了防止因为CubeMX生成代码导致波特率被更改，这里加入手动设置波特率的功能
         // 如果传入了非零的波特率，且与当前初始化波特率不同，则进行重配置
         if (node->baudrate != 0 && node->huart->Init.BaudRate != node->baudrate)
         {

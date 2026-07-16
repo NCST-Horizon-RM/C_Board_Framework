@@ -21,7 +21,7 @@
 #define RC_ROCKER_XY_COEF      0.004f  // 摇杆控制平移的增益
 #define RC_ROCKER_VW_COEF      0.02f   // 摇杆控制自旋的增益
 #define RC_PITCH_COEF          0.001f
-#define RC_YAW_COEF            0.006f
+#define RC_YAW_COEF            0.002f
 
 #define KB_WASD_COEF           330.0f    // 键盘 WASD 速度增益
 #define KB_VW_COEF             660.0f
@@ -119,8 +119,6 @@ static void Cmd_Handle_Safe_Mode(void)
     chassis_cmd.target_vy = 0.0f;
     chassis_cmd.target_vw = 0.0f;
 
-    shoot_cmd.lfriction_rpm   = 6307.0f;
-    shoot_cmd.rfriction_rpm   = -6337.0f;
     shoot_cmd.trigger_single = false;
     shoot_cmd.trigger_auto   = false;
     shoot_cmd.bullet_speed = 0.0f;
@@ -132,18 +130,34 @@ static void Cmd_Handle_Safe_Mode(void)
 static void Cmd_Update_Remote_Ctrl(void)
 {
     // 底盘
-    int16_t relative_angle = YAW_ZERO - gimbal_motors_data.DM4310_Yaw.Angle_now;
-    if (relative_angle > 4096) {relative_angle -= 8192;}
-    else if (relative_angle < -4096) {relative_angle += 8192;}
-    chassis_cmd.offset_angle = (float)relative_angle * ENCODER_TO_RAD;
     chassis_cmd.target_vx = (float)vt13_data.Remote.Channel [1] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vy = -(float)vt13_data.Remote.Channel[0] * RC_ROCKER_XY_COEF;
-    chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_XY_COEF;
+    chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_VW_COEF;
     //云台
-    gimbal_cmd.target_yaw -=(float)vt13_data.Remote.Channel [2]*RC_YAW_COEF;
-    gimbal_cmd.target_pitch -=(float)vt13_data.Remote.Channel[3] * RC_PITCH_COEF;
+    if (gimbal_cmd.mode = GIMBAL_CMD_MANUAL) {
+        gimbal_cmd.target_yaw_rate = -(float)vt13_data.Remote.Channel [3]*RC_YAW_COEF;
+        gimbal_cmd.target_yaw += gimbal_cmd.target_yaw_rate;
+        gimbal_cmd.target_yaw = normalize_to_pi(gimbal_cmd.target_yaw * DEG2RAD) * RAD2DEG;
+
+        gimbal_cmd.target_pitch_rate = (float)vt13_data.Remote.Channel [2]*RC_PITCH_COEF;
+        gimbal_cmd.target_pitch += gimbal_cmd.target_pitch_rate;
+        gimbal_cmd.target_pitch = MATH_Limit_float(31.0f,-13.0f,gimbal_cmd.target_pitch);
+    }
+    if (gimbal_cmd.mode = GIMBAL_CMD_AUTO_AIM) {
+        gimbal_cmd.target_yaw_rate =0;
+        gimbal_cmd.target_yaw +=0;
+        gimbal_cmd.target_yaw = normalize_to_pi(gimbal_cmd.target_yaw * DEG2RAD) * RAD2DEG;
+
+        gimbal_cmd.target_pitch_rate = 0;
+        gimbal_cmd.target_pitch += 0;
+        gimbal_cmd.target_pitch = MATH_Limit_float(31.0f,-13.0f,gimbal_cmd.target_pitch);
+    }
+
     //发射
     shoot_cmd.mode = SHOOT_CMD_READY;
+    shoot_cmd.heat_max = b2b_rx_data.bits.heat_large;
+    shoot_cmd.heat_now = b2b_rx_data.bits.heat_last;
+    shoot_cmd.cool = b2b_rx_data.bits.cooling;
     shoot_cmd.trigger_single = (vt13_data.Remote.fn_1==1 && shoot_cmd.last_fn1==0);
     shoot_cmd.trigger_auto   = (vt13_data.Remote.fn_2==1||vt13_data.Remote.trigger==1);
     if (vt13_data.Remote.mode_sw != 0) {
@@ -172,29 +186,70 @@ static void Cmd_Update_Mouse_Key(void)
 /**
  * @brief 双板数据同步逻辑
  */
+
 static void Cmd_DualBoard_Sync(void)
 {
-    // 发送前清空脏数据
-    memset(&b2b_tx_data, 0, sizeof(b2b_tx_data));
+    // 放大并四舍五入取整
+    int32_t int_vx = (int32_t)roundf(chassis_cmd.target_vx * 100.0f);
+    int32_t int_vy = (int32_t)roundf(chassis_cmd.target_vy * 100.0f);
+    int32_t int_vr = (int32_t)roundf(chassis_cmd.target_vw * 100.0f);
+    int32_t int_pitch = (int32_t)roundf(imu_data.pitch);
 
-    b2b_tx_data.bits.vx=chassis_cmd.target_vx;
-    b2b_tx_data.bits.vy=chassis_cmd.target_vy;
-    b2b_tx_data.bits.vr=chassis_cmd.target_vw;
-    b2b_tx_data.bits.key_shift=vt13_data.KeyBoard .Shift;
-    b2b_tx_data.bits.key_q=vt13_data.KeyBoard .Q;
-    b2b_tx_data.bits.key_e=vt13_data.KeyBoard .E;
-    b2b_tx_data.bits.key_v=vt13_data.KeyBoard .V;
-    b2b_tx_data.bits.key_ctrl=vt13_data.KeyBoard .Ctrl;
-    b2b_tx_data.bits.romoteOnLine=vt13_data.offline.is_online;
-    b2b_tx_data.bits.S1 =vt13_data.Remote .fn_1 ;
-    b2b_tx_data.bits.S2 =vt13_data.Remote .fn_2 ;
-    b2b_tx_data.bits.pitch =-(int16_t)(imu_data.pitch);
-    b2b_tx_data.bits.fire_wheel=Is_Group_Online(SHOOT);
-    b2b_tx_data.bits.gimbal_lixian =Is_Group_Online(GIMBAL);
-    b2b_tx_data.bits.vision_look=0;//TODO:视觉是否识别到目标
-    b2b_tx_data.bits.vision=0;//     视觉是否开启
-    b2b_tx_data.bits.surplus_count=0;//发弹数量
+    int_vx = CLAMP(int_vx, -1024, 1023);
+    int_vy = CLAMP(int_vy, -1024, 1023);
+    int_vr = CLAMP(int_vr, -1024, 1023);
+    int_pitch = CLAMP(int_pitch, -16, 15);
 
+    uint32_t u_vx    = (uint32_t)int_vx    & 0x07FF;
+    uint32_t u_vy    = (uint32_t)int_vy    & 0x07FF;
+    uint32_t u_vr    = (uint32_t)int_vr    & 0x07FF;
+    uint32_t u_pitch = (uint32_t)int_pitch & 0x001F;
+
+    uint8_t k_q       = vt13_data.KeyBoard.Q      & 0x01;
+    uint8_t k_e       = vt13_data.KeyBoard.E      & 0x01;
+    uint8_t k_v       = vt13_data.KeyBoard.V      & 0x01;
+    uint8_t k_shift   = vt13_data.KeyBoard.Shift  & 0x01;
+    uint8_t k_ctrl    = vt13_data.KeyBoard.Ctrl   & 0x01;
+    uint8_t rc_online = vt13_data.offline.is_online & 0x03;
+    uint8_t rc_s1     = vt13_data.Remote.fn_1     & 0x03;
+    uint8_t rc_s2     = vt13_data.Remote.fn_2     & 0x03;
+    uint8_t f_wheel   = Is_Group_Online(SHOOT)    & 0x01;
+    uint8_t g_lixian  = Is_Group_Online(GIMBAL)   & 0x01;
+    uint8_t v_look    = 0 & 0x01;
+    uint8_t vision    = 0 & 0x01;
+    uint32_t surplus  = 0 & 0x01FF; // 9位
+
+    uint8_t temp_buf[8] = {0};
+    // --- Byte 0 ---
+    temp_buf[0] = (uint8_t)(u_vx & 0xFF);
+    // --- Byte 1 ---
+    temp_buf[1] = (uint8_t)(((u_vx >> 8) & 0x07) | ((u_vy << 3) & 0xF8));
+    // --- Byte 2 ---
+    temp_buf[2] = (uint8_t)(((u_vy >> 5) & 0x3F) | ((u_vr << 6) & 0xC0));
+    // --- Byte 3 ---
+    temp_buf[3] = (uint8_t)((u_vr >> 2) & 0xFF);
+    // --- Byte 4 ---
+    temp_buf[4] = (uint8_t)(((u_vr >> 10) & 0x01) |
+                            (k_q << 1)            |
+                            (k_e << 2)            |
+                            (k_v << 3)            |
+                            (k_shift << 4)        |
+                            (k_ctrl << 5)         |
+                            (rc_online << 6));
+    // --- Byte 5 ---
+    temp_buf[5] = (uint8_t)((rc_s1 & 0x03) |
+                            ((rc_s2 & 0x03) << 2) |
+                            ((u_pitch << 4) & 0xF0));
+    // --- Byte 6 ---
+    temp_buf[6] = (uint8_t)(((u_pitch >> 4) & 0x01) |
+                            (f_wheel << 1)          |
+                            (g_lixian << 2)         |
+                            (v_look << 3)           |
+                            (vision << 4)           |
+                            ((surplus << 5) & 0xE0));
+    // --- Byte 7 ---
+    temp_buf[7] = (uint8_t)((surplus >> 3) & 0x3F);
+    memcpy(b2b_tx_data.buf, temp_buf, 8);
     CAN_Send_Msg(&hcan1, 0x231, b2b_tx_data.buf, 8);
 }
 

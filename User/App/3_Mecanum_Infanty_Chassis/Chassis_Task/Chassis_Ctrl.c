@@ -41,7 +41,7 @@ static float Chassis_Power_Arbitrator(float base_power_limit,
  * @param  dec_step    减速最大步长 (绝对值)
  * @return float       经过限制的当前值
  */
-static float Ramp_Calc(float target, float current, float acc_step, float dec_step)
+static float Ramp_Calc(float target, float current, float acc_step, float dec_step, float dt)
 {
     float step = 0.0f;
     bool is_accelerating = false;
@@ -51,7 +51,7 @@ static float Ramp_Calc(float target, float current, float acc_step, float dec_st
     else if (current <= 0.0f && target < current) {
         is_accelerating = true;
     }
-    step = is_accelerating ? acc_step : dec_step;
+    step = is_accelerating ? acc_step * dt : dec_step * dt;
     if (target > current) {
         current += step;
         if (current > target) {
@@ -91,8 +91,12 @@ uint8_t Chassis_Control_Init(void)
             0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     }
     // 底盘跟随PID初始化
-    float PID_Chassis_Follow[3] = {12.0f,   0.0f,   0.0f};
-    PID_Init(&chassis_ctrl.Follow, 20.0f, 2.0f, PID_Chassis_Follow,
+    float PID_Follow_Pos[3] = {18.0f,   0.0f,   0.0f};
+    PID_Init(&chassis_ctrl.Follow_Pos, 15.0f, 0.0f, PID_Follow_Pos,
+             0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
+
+    float PID_Follow_Spd[3] = {1.5f,   0.0f,   0.0f};
+    PID_Init(&chassis_ctrl.Follow_Spd, 15.0f, 1.0f, PID_Follow_Spd,
              0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     // 功率控制初始化及参数配置
     Power_Ctrl_Init(&chassis_model);
@@ -116,7 +120,7 @@ uint8_t Chassis_Control_Init(void)
 /**
  * @brief 底盘控制任务
  */
-void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, float dt)
+void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, const IMU_Data_t *imu, float dt)
 {
     // 空指针保护
     if (c_motor == NULL) {
@@ -144,9 +148,9 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, float dt)
         // 清空PID
         for (int i = 0; i < 4; i++) {
             PID_Clear(&chassis_ctrl.Drive_S[i]);
-            chassis_ctrl.Drive_S[i].Output = 0.0f;
         }
-        PID_Clear(&chassis_ctrl.Follow);
+        PID_Clear(&chassis_ctrl.Follow_Pos);
+        PID_Clear(&chassis_ctrl.Follow_Spd);
         // 清空斜坡函数
         cur_vx_gimbal = 0.0f;
         cur_vy_gimbal = 0.0f;
@@ -157,17 +161,18 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, float dt)
         float vw_tar = cmd.target_vw;
         // 底盘跟随模式下，计算底盘跟随PID
         if (cmd.mode == CHASSIS_CMD_FOLLOW) {
-            vw_tar = PID_Calculate(&chassis_ctrl.Follow, cmd.offset_angle, 0.0f);
+            PID_Calculate(&chassis_ctrl.Follow_Pos, cmd.offset_angle, 0.0f);
+            vw_tar = PID_Calculate(&chassis_ctrl.Follow_Spd, imu->gyro[2], chassis_ctrl.Follow_Pos.Output);
         }
         // 非对称梯形加减速
-        cur_vx_gimbal = Ramp_Calc(cmd.target_vx, cur_vx_gimbal, 0.004f, 0.1f);
-        cur_vy_gimbal = Ramp_Calc(cmd.target_vy, cur_vy_gimbal, 0.004f, 0.1f);
-        cur_vw        = Ramp_Calc(vw_tar,        cur_vw,        0.35f,  0.4f);
+        cur_vx_gimbal = Ramp_Calc(cmd.target_vx, cur_vx_gimbal, 5.0f, 100.0f,dt);
+        cur_vy_gimbal = Ramp_Calc(cmd.target_vy, cur_vy_gimbal, 5.0f, 100.0f,dt);
+        cur_vw        = Ramp_Calc(vw_tar,        cur_vw,        350.0f,  400.0f,dt);
         // 底盘坐标系旋转矩阵
         float cos_theta = arm_cos_f32(cmd.offset_angle);
         float sin_theta = arm_sin_f32(cmd.offset_angle);
-        float cur_vx_chassis = cur_vx_gimbal * cos_theta - cur_vy_gimbal * sin_theta;
-        float cur_vy_chassis = cur_vx_gimbal * sin_theta + cur_vy_gimbal * cos_theta;
+        float cur_vx_chassis = cur_vx_gimbal * cos_theta + cur_vy_gimbal * sin_theta;
+        float cur_vy_chassis = cur_vy_gimbal * cos_theta - cur_vx_gimbal * sin_theta;
         // 逆运动学与速度环 PID 计算
         float target_rpm[4] = {0};
         Mecanum_Calc(target_rpm, cur_vx_chassis, cur_vy_chassis, cur_vw, &chassis_ctrl.Mecanum);
@@ -182,10 +187,18 @@ void Chassis_Control_Task(const Chassis_Motor_Group_t *c_motor, float dt)
         }
         bool trigger_discharge = cmd.is_cap_on;// 输入电容开启标志
         float cap_board_limit = 0.0f;
-        float final_limit = Chassis_Power_Arbitrator(
-                                chassis_referee.robot_status.chassis_power_limit,
-                                chassis_referee.power_heat_data.buffer_energy,
-                                1, &local_cap_data, &trigger_discharge, &cap_board_limit);
+        float final_limit = 0.0f;
+        if (chassis_referee.offline.is_online) {
+            final_limit = Chassis_Power_Arbitrator(
+                                    chassis_referee.robot_status.chassis_power_limit,
+                                    chassis_referee.power_heat_data.buffer_energy,
+                                    1, &local_cap_data, &trigger_discharge, &cap_board_limit);
+        }
+        else {
+            trigger_discharge = FALSE;
+            cap_board_limit = 45.0f;//
+            final_limit = 75.0f;
+        }
         Power_Ctrl_Calculate(&chassis_model, final_limit, pwr_groups, 1);
         for(int i = 0; i < 4; i++) {
             chassis_ctrl.Drive_S[i].Output = m_states[i].limited_cmd;
@@ -246,7 +259,7 @@ static float Chassis_Power_Arbitrator(float base_power_limit,
         return final_target_power - 5.0f;
     }
     // 在线且正常状态下的 放电/充电 逻辑
-    if (boost_intent && cap_data->get.Cap_Capacity > MIN_CAP_VOLTAGE)
+    if (boost_intent && cap_data->get.Cap_Capacity > MIN_CAP_VOLTAGE && cap_data->get.offline.is_online == 1)
     {
         float boost_allowance = MAX_BOOST_POWER;
         // 斜坡衰减保护机制
@@ -258,12 +271,6 @@ static float Chassis_Power_Arbitrator(float base_power_limit,
         // 最终允许的底盘功率上限 = 基础可用功率 + 超电补偿功率
         final_target_power += boost_allowance;
         *out_discharge = true;
-    }
-    else
-    {
-        // 留 4W 功率给超级电容充电
-        final_target_power -= 4.0f;
-        *out_discharge = false;
     }
     return final_target_power; // 返回给电机的最终功率限制
 }

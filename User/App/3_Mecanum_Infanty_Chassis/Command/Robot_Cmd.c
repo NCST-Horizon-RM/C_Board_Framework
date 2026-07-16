@@ -26,7 +26,7 @@
 #define MOUSE_PITCH_COEF       0.06f
 #define MOUSE_YAW_COEF         0.04f
 
-#define YAW_ZERO               5100
+#define YAW_ZERO               5162
 
 // --- Pub/Sub 句柄 ---
 static Subscriber_t *sys_state_sub;
@@ -127,18 +127,14 @@ static void Cmd_Handle_Safe_Mode(void)
 static void Cmd_Update_Remote_Ctrl(void)
 {
     int16_t relative_angle = YAW_ZERO - gimbal_motors_data.DM4310_Yaw.Angle_now;
-    if (relative_angle > 4096) {relative_angle -= 8192;}
-    else if (relative_angle < -4096) {relative_angle += 8192;}
-    chassis_cmd.offset_angle = (float)relative_angle * ENCODER_TO_RAD;
+    chassis_cmd.offset_angle = normalize_to_pi((float)relative_angle * ENCODER_TO_RAD);;
 
-    chassis_cmd.target_vx = (float)b2b_rx_data.bits.vx * RC_ROCKER_XY_COEF;
-    chassis_cmd.target_vy = -(float)b2b_rx_data.bits.vy * RC_ROCKER_XY_COEF;
-
-    if (b2b_rx_data.bits.vr == 0) {
-        chassis_cmd.mode = CHASSIS_CMD_FOLLOW;
-    } else {
+    chassis_cmd.target_vx = (float)b2b_rx_data.bits.vx * 0.01f;
+    chassis_cmd.target_vy = (float)b2b_rx_data.bits.vy * 0.01f;
+    chassis_cmd.mode = CHASSIS_CMD_FOLLOW;
+    if (b2b_rx_data.bits.vr != 0) {
         chassis_cmd.mode = CHASSIS_CMD_SPIN;
-        chassis_cmd.target_vw = -b2b_rx_data.bits.vr * RC_ROCKER_VW_COEF;
+        chassis_cmd.target_vw = (float)b2b_rx_data.bits.vr /100.0f;
     }
     chassis_cmd.is_cap_on = true;
 }
@@ -172,11 +168,12 @@ static void Cmd_DualBoard_Sync(void)
 {
     memset(&b2b_tx_data, 0, sizeof(b2b_tx_data));
 
-    b2b_tx_data.bits.heat_last         = referee_data.robot_status.shooter_barrel_heat_limit;
+    b2b_tx_data.bits.heat_last         = referee_data.power_heat_data.shooter_17mm_barrel_heat;
     b2b_tx_data.bits.cooling           = referee_data.robot_status.shooter_barrel_cooling_value;
     b2b_tx_data.bits.level             = referee_data.robot_status.robot_level;
     b2b_tx_data.bits.initial_s         = (uint8_t)roundf (referee_data.shoot_data.initial_speed *10); // 裁判系统在线状态
-    b2b_tx_data.bits.robot_HP          =referee_data.robot_status.current_HP;
+    b2b_tx_data.bits.robot_HP          = referee_data.robot_status.current_HP;
+    b2b_tx_data.bits.heat_large        = referee_data.robot_status.shooter_barrel_heat_limit;
     // 2. 自身颜色判断
     if(referee_data.robot_status.robot_id == 3) { // 红方
         b2b_tx_data.bits.self_color = 0;

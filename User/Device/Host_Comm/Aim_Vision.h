@@ -25,8 +25,8 @@ typedef struct {
     Offline_Check_t offline;
     float pitch;        // 视觉计算的Pitch绝对角度
     float yaw;          // 视觉计算的Yaw绝对角度
-    float pitch_plan;   // Pitch 预测/规划角度
-    float yaw_plan;     // Yaw 预测/规划角度
+    float pitch_plan;   // Pitch 角速度前馈
+    float yaw_plan;     // Yaw 角速度前馈
 
     bool  target_found; // 是否识别到目标
     bool  fire_command; // 是否允许开火

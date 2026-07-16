@@ -10,6 +10,7 @@
 #include "IMU_Task.h"
 #include "Robot_Config.h"
 #include "Robot_Cmd.h"
+#include "Vofa.h"
 
 static Gimbal_Ctrl_Block_t gimbal_ctrl;
 //订阅消息
@@ -29,18 +30,18 @@ uint8_t Gimbal_Control_Init(void)
 {
 
     // Pitch PID参数初始化
-    float PID_Pitch_P[3] = {0.0f,   0.0f,  0.0f};
+    float PID_Pitch_P[3] = {0.45f,   0.0f,  0.0f};
         PID_Init(&gimbal_ctrl.Pitch_P, 50.0f, 30.0f, PID_Pitch_P,
             0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
-    float PID_Pitch_S[3] = {0.0f,   0.0f,   0.0f};
-    PID_Init(&gimbal_ctrl.Pitch_S, 30.0f, 2.0f, PID_Pitch_S,
+    float PID_Pitch_S[3] = {5.5f,   0.02f,   0.0f};
+    PID_Init(&gimbal_ctrl.Pitch_S, 30.0f, 5.0f, PID_Pitch_S,
              0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     //Yaw PID参数初始化
-    float PID_Yaw_P[3] = {0.0f,   0.0f,  0.0f};
-    PID_Init(&gimbal_ctrl.Yaw_P, 50.0f, 30.0f, PID_Yaw_P,
+    float PID_Yaw_P[3] = {-0.28f,   0.0f,  0.0f};
+    PID_Init(&gimbal_ctrl.Yaw_P, 20.0f, 5.0f, PID_Yaw_P,
         0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
-    float PID_Yaw_S[3] = {0.0f,   0.0f,   0.0f};
-    PID_Init(&gimbal_ctrl.Yaw_S, 30.0f, 2.0f, PID_Yaw_S,
+    float PID_Yaw_S[3] = {-8.0f,   0.03f,   0.0f};
+    PID_Init(&gimbal_ctrl.Yaw_S, 30.0f, 4.0f, PID_Yaw_S,
              0, 0, 0, 0, 0, Integral_Limit | ErrorHandle);
     //向系统下发底盘当前状态，准备中
     System_State_Report(ID_GIMBAL, STATUS_PREPARING);
@@ -85,13 +86,12 @@ void Gimbal_Control_Task(const Gimbal_Motor_Group_t *g_motor,const IMU_Data_t *g
     }
     else
     {
-        float yaw_target;
-        yaw_target= normalize_to_pi((cmd.target_yaw -g_imu->yaw)*DEG2RAD)*RAD2DEG;
-       PID_Calculate(&gimbal_ctrl.Yaw_P,g_imu->yaw,yaw_target);
-        PID_Calculate(&gimbal_ctrl.Yaw_S,-g_imu->gyro[0],gimbal_ctrl.Yaw_P.Output);
-        PID_Calculate(&gimbal_ctrl.Pitch_P,g_imu->pitch,cmd.target_pitch);
-        PID_Calculate(&gimbal_ctrl.Pitch_S,g_imu->gyro[2],gimbal_ctrl.Pitch_P.Output);
+        gimbal_ctrl.Yaw_P.Ref = g_imu->yaw + normalize_to_pi((cmd.target_yaw - g_imu->yaw) * DEG2RAD) * RAD2DEG;
+        PID_Calculate(&gimbal_ctrl.Yaw_P, g_imu->yaw, gimbal_ctrl.Yaw_P.Ref);
+        PID_Calculate(&gimbal_ctrl.Yaw_S,g_imu->gyro[2],gimbal_ctrl.Yaw_P.Output - 3*cmd.target_yaw_rate);
 
+        PID_Calculate(&gimbal_ctrl.Pitch_P,g_imu->pitch,cmd.target_pitch);
+        PID_Calculate(&gimbal_ctrl.Pitch_S,g_imu->gyro[1],gimbal_ctrl.Pitch_P.Output + 3.5f*cmd.target_pitch_rate);
     }
 
     if (!is_system_locked)
@@ -102,5 +102,4 @@ void Gimbal_Control_Task(const Gimbal_Motor_Group_t *g_motor,const IMU_Data_t *g
                            0,
                            0);
     }
-
 }

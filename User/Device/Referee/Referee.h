@@ -70,16 +70,19 @@ typedef struct __packed
     uint8_t winner;                /* 0:平局, 1:红方胜利, 2:蓝方胜利 */
 } game_result_t;
 
+/* 0x0003 机器人血量数据 */
 typedef struct __packed
 {
     uint16_t ally_1_robot_HP;      /* 己方1号英雄机器人血量,若该机器人未上场或者被罚下,则血量为0,下文同理 */
     uint16_t ally_2_robot_HP;      /* 己方2号工程机器人血量 */
     uint16_t ally_3_robot_HP;      /* 己方3号步兵机器人血量 */
     uint16_t ally_4_robot_HP;      /* 己方4号步兵机器人血量 */
-    uint16_t reserved;             /* 保留位 */
+    int16_t damage_difference;     /* 己方全队总伤害与对方全队总伤害之差  */
     uint16_t ally_7_robot_HP;      /* 己方7号哨兵机器人血量 */
     uint16_t ally_outpost_HP;      /* 己方前哨站血量 */
     uint16_t ally_base_HP;         /* 己方基地血量 */
+    uint16_t enemy_outpost_HP;     /* 对方前哨站血量 */
+    uint16_t enemy_base_HP;        /* 对方基地血量 */
 } game_robot_HP_t;
 
 /* 0x0101 场地事件数据 */
@@ -128,6 +131,7 @@ typedef struct __packed
     uint16_t shooter_barrel_cooling_value;       /* 机器人射击热量每秒冷却值 */
     uint16_t shooter_barrel_heat_limit;          /* 机器人射击热量上限 */
     uint16_t chassis_power_limit;                /* 机器人底盘功率上限 */
+    float bullet_speed_limit;                    /* 机器人射击初速度上限 */
     uint8_t power_management_gimbal_output : 1;  /* bit 0: gimbal 输出,0为无输出,1为24V输出 */
     uint8_t power_management_chassis_output : 1; /* bit 1: chassis 口输出,0为无输出,1为24V输出 */
     uint8_t power_management_shooter_output : 1; /* bit 2: shooter 口输出,0为无输出,1为24V 输出 */
@@ -334,14 +338,13 @@ typedef struct __packed
     uint32_t details_e:11;          /* 根据绘制的图形不同,含义不同,详见“表1-28 图形细节参数说明” */
 } interaction_figure_t;
 
-/* UI字符 */
+/* 0x0301 机器人交互数据，发送方触发发送 */
 typedef struct __packed
 {
     uint16_t data_id;                            /* 数据的内容 ID, 0x0110 */
     uint16_t tx_id;                              /* 发送者的ID */
     uint16_t rx_id;                              /* 接收者的ID */
-    uint8_t Character_configuration[15];         /* 字符配置 */
-    uint8_t Character[30];                       /* 字符 */
+    uint8_t user_data[112];                      /* 字符配置 */
 } graphic_data_struct_t;
 
 typedef struct __packed
