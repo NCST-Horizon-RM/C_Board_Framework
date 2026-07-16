@@ -110,11 +110,9 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
         // 清空PID
         PID_Clear(&shoot_ctrl.Bmotor_P);
         PID_Clear(&shoot_ctrl.Bmotor_S);
-        PID_Clear(&shoot_ctrl.Lfire_S );
-        PID_Clear(&shoot_ctrl.Rfire_S );
-        DJI_Motor_Send(&hcan1,0x200,0,0,0,0);
-        DJI_Motor_Send(&hcan2,0x200,0,0,0,0);
-        return;
+        shoot_ctrl.Lfire_speed = 0.0f;
+        shoot_ctrl.Rfire_speed = 0.0f;
+        shoot_ctrl.Bmotor_P.Ref = g_motor->DJI_2006_bo.Angle_Infinite;
     }
     static uint32_t last_shot_time = 0;
     static bool is_init =false;
@@ -126,24 +124,19 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
                dt, &shoot_ctrl.Det_Count);
 
     // 根据剩余热量计算动态弹频
-    shoot_ctrl.Feeder_Count.target_freq = Heat_Freq_Ctrl(
-        0.4f,cmd.heat_max,cmd.heat_now,cmd.cool,
-        bullet_fired,dt,18,10);
+    //shoot_ctrl.Feeder_Count.target_freq = Heat_Freq_Ctrl(0.4f,cmd.heat_max,cmd.heat_now,cmd.cool,bullet_fired,dt,18,10);
 
 //包含摩擦轮是否开启
-    if (cmd.mode == SHOOT_CMD_SAFE)
-    {
-        DJI_Motor_Send(&hcan1,0x200,0,0,0,0);
-        DJI_Motor_Send(&hcan2,0x200,0,0,0,0);
-        return;
-    }
     if (cmd.mode == SHOOT_CMD_READY)
     {
-        DJI_Motor_Send(&hcan2,0x200,0,0,0,0);
+        shoot_ctrl.Lfire_speed = 0.0f;
+        shoot_ctrl.Rfire_speed = 0.0f;
         shoot_ctrl.Bmotor_P.Ref = smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;
         shoot_ctrl.Feeder_Count.target_pos_cnt = (int32_t)ceilf(smooth_ref / (shoot_ctrl.Counts_Shoot) - 0.1f);
     }
-    if (cmd.mode == SHOOT_CMD_RUN) {
+    if (cmd.mode == SHOOT_CMD_RUN || cmd.mode == SHOOT_CMD_FIRE) {
+        shoot_ctrl.Lfire_speed = -6500.0f;//左摩擦轮目标转速
+        shoot_ctrl.Rfire_speed = 6500.0f;//右摩擦轮目标转速
         if (!is_init)
         {
             smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;
@@ -160,7 +153,7 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
                 float current_target_angle = (float)shoot_ctrl.Feeder_Count.target_pos_cnt * shoot_ctrl.Counts_Shoot * (float)shoot_ctrl.dir_sign;
                 float angle_error = fabsf(current_target_angle - g_motor->DJI_2006_bo.Angle_Infinite);
                 // 只有当误差小于1.1发弹丸的角度时，才允许下发新的发弹指令
-                if (angle_error < (1.1f * shoot_ctrl.Counts_Shoot)) {
+                if (angle_error < (1.5f * shoot_ctrl.Counts_Shoot)) {
                     shoot_ctrl.Feeder_Count.target_pos_cnt ++;////////
                 }
                 else {
@@ -197,19 +190,18 @@ void Shoot_Control_Task(const Shoot_Motor_Group_t *g_motor, float dt)
         {
             smooth_ref = g_motor->DJI_2006_bo.Angle_Infinite;;
         }
-
-        shoot_ctrl.Lfire_S.Ref=shoot_ctrl.Lfire_speed;
-        shoot_ctrl.Rfire_S.Ref=shoot_ctrl.Rfire_speed;
-        shoot_ctrl.Bmotor_P.Ref=smooth_ref;
-
-        PID_Calculate(&shoot_ctrl.Lfire_S, g_motor->DJI_3508_L.Speed_now, shoot_ctrl.Lfire_S.Ref);
-        PID_Calculate(&shoot_ctrl.Rfire_S, g_motor->DJI_3508_R.Speed_now, shoot_ctrl.Rfire_S.Ref);
-        PID_Calculate(&shoot_ctrl.Bmotor_P, g_motor->DJI_2006_bo.Angle_Infinite, shoot_ctrl.Bmotor_P.Ref);
-        PID_Calculate(&shoot_ctrl.Bmotor_S, g_motor->DJI_2006_bo.Speed_now, shoot_ctrl.Bmotor_P .Output);
-
-        DJI_Motor_Send(&hcan2,0x200,shoot_ctrl.Lfire_S.Output,shoot_ctrl.Rfire_S.Output,0,0);
-        DJI_Motor_Send(&hcan1,0x200,0,0,shoot_ctrl.Bmotor_S.Output,0 );
     }
+    shoot_ctrl.Lfire_S.Ref=shoot_ctrl.Lfire_speed;
+    shoot_ctrl.Rfire_S.Ref=shoot_ctrl.Rfire_speed;
+    shoot_ctrl.Bmotor_P.Ref=smooth_ref;
+
+    PID_Calculate(&shoot_ctrl.Lfire_S, g_motor->DJI_3508_L.Speed_now, shoot_ctrl.Lfire_S.Ref);
+    PID_Calculate(&shoot_ctrl.Rfire_S, g_motor->DJI_3508_R.Speed_now, shoot_ctrl.Rfire_S.Ref);
+    PID_Calculate(&shoot_ctrl.Bmotor_P, g_motor->DJI_2006_bo.Angle_Infinite, shoot_ctrl.Bmotor_P.Ref);
+    PID_Calculate(&shoot_ctrl.Bmotor_S, g_motor->DJI_2006_bo.Speed_now, shoot_ctrl.Bmotor_P .Output);
+
+    DJI_Motor_Send(&hcan2,0x200,shoot_ctrl.Lfire_S.Output,shoot_ctrl.Rfire_S.Output,0,0);
+    DJI_Motor_Send(&hcan1,0x200,0,0,shoot_ctrl.Bmotor_S.Output,0 );
     VOFA_JustFloat(&huart1, 5, cmd.heat_max,cmd.heat_now,cmd.cool,bullet_fired);
 }
 /**

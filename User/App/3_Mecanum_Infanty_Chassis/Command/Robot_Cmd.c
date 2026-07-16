@@ -26,7 +26,7 @@
 #define MOUSE_PITCH_COEF       0.06f
 #define MOUSE_YAW_COEF         0.04f
 
-#define YAW_ZERO               5162
+#define YAW_ZERO               1190
 
 // --- Pub/Sub 句柄 ---
 static Subscriber_t *sys_state_sub;

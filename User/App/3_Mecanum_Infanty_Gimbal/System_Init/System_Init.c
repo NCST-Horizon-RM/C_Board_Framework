@@ -31,7 +31,7 @@ void System_Init() {
     //串口设备初始化
     Auto_UART_Router_Init();
     //蜂鸣器初始化
-    Buzzer_Init();
+    //Buzzer_Init();
     LED_Init();
     //TODO 这里不该出现HAL库代码的，偷个懒后面再改
     HAL_TIM_Base_Start_IT(&htim3);

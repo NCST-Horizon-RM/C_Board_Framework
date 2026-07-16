@@ -85,13 +85,11 @@ void Robot_Cmd_Update(void)
 
     System_State_Report_Remote(vt13_data.offline.is_online);//向系统状态模块传入遥控器在线状态
 
-    if (cmd_sys_state.global_mode == GLOBAL_SAFE_LOCK ||
-        cmd_sys_state.global_mode == GLOBAL_MODULE_ERROR ||
-        cmd_sys_state.global_mode == GLOBAL_STANDBY)
+    if (cmd_sys_state.error.bit.remote_lost)
     {
         Cmd_Handle_Safe_Mode();
     }
-    if (vt13_data.Ctrl_Mode == 1) {
+    else if (vt13_data.Ctrl_Mode == 1) {
         Cmd_Update_Mouse_Key();
     }
     else {
@@ -134,16 +132,16 @@ static void Cmd_Update_Remote_Ctrl(void)
     chassis_cmd.target_vy = -(float)vt13_data.Remote.Channel[0] * RC_ROCKER_XY_COEF;
     chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_VW_COEF;
     //云台
-    if (gimbal_cmd.mode = GIMBAL_CMD_MANUAL) {
-        gimbal_cmd.target_yaw_rate = -(float)vt13_data.Remote.Channel [3]*RC_YAW_COEF;
-        gimbal_cmd.target_yaw += gimbal_cmd.target_yaw_rate;
-        gimbal_cmd.target_yaw = normalize_to_pi(gimbal_cmd.target_yaw * DEG2RAD) * RAD2DEG;
+    gimbal_cmd.mode = GIMBAL_CMD_MANUAL;
+    gimbal_cmd.target_yaw_rate = -(float)vt13_data.Remote.Channel [3]*RC_YAW_COEF;
+    gimbal_cmd.target_yaw += gimbal_cmd.target_yaw_rate;
+    gimbal_cmd.target_yaw = normalize_to_pi(gimbal_cmd.target_yaw * DEG2RAD) * RAD2DEG;
 
-        gimbal_cmd.target_pitch_rate = (float)vt13_data.Remote.Channel [2]*RC_PITCH_COEF;
-        gimbal_cmd.target_pitch += gimbal_cmd.target_pitch_rate;
-        gimbal_cmd.target_pitch = MATH_Limit_float(31.0f,-13.0f,gimbal_cmd.target_pitch);
-    }
-    if (gimbal_cmd.mode = GIMBAL_CMD_AUTO_AIM) {
+    gimbal_cmd.target_pitch_rate = (float)vt13_data.Remote.Channel [2]*RC_PITCH_COEF;
+    gimbal_cmd.target_pitch += gimbal_cmd.target_pitch_rate;
+    gimbal_cmd.target_pitch = MATH_Limit_float(31.0f,-13.0f,gimbal_cmd.target_pitch);
+    if (vt13_data.Remote.mode_sw == 2) {
+        gimbal_cmd.mode = GIMBAL_CMD_AUTO_AIM;
         gimbal_cmd.target_yaw_rate =0;
         gimbal_cmd.target_yaw +=0;
         gimbal_cmd.target_yaw = normalize_to_pi(gimbal_cmd.target_yaw * DEG2RAD) * RAD2DEG;
