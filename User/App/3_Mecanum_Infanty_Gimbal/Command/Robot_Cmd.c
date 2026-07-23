@@ -35,6 +35,7 @@
 // --- Pub/Sub 句柄 ---
 static Subscriber_t *sys_state_sub;
 static Subscriber_t *vt13_sub;
+static Subscriber_t *dbus_sub;
 static Subscriber_t *gimbal_motors_sub;
 static Subscriber_t *shoot_motors_sub;
 static Subscriber_t *imu_sub;
@@ -46,6 +47,7 @@ static Publisher_t *shoot_cmd_pub;
 // --- 本地静态内存缓存 ---
 static System_State_t cmd_sys_state;
 static VT13_Typedef vt13_data;
+static DBUS_Typedef dbus_data;
 static Gimbal_Motor_Group_t gimbal_motors_data;
 static Shoot_Motor_Group_t shoot_motors_data;
 static IMU_Data_t imu_data;
@@ -67,6 +69,7 @@ void Robot_Cmd_Init(void)
 {
     sys_state_sub = SubRegister("system_state", sizeof(System_State_t));
     vt13_sub     = SubRegister("vt13_data", sizeof(VT13_Typedef));
+    dbus_sub     = SubRegister("dbus_data", sizeof(DBUS_Typedef));
     gimbal_motors_sub = SubRegister("gimbal_motors", sizeof(Gimbal_Motor_Group_t));
     shoot_motors_sub = SubRegister("shoot_motors",sizeof(Shoot_Motor_Group_t));
     imu_sub = SubRegister("imu_data", sizeof(IMU_Data_t));
@@ -79,17 +82,17 @@ void Robot_Cmd_Update(void)
 {
     if (sys_state_sub) SubGetMessage(sys_state_sub, &cmd_sys_state);
     if (vt13_sub)     SubGetMessage(vt13_sub, &vt13_data);
+    if (dbus_sub)     SubGetMessage(dbus_sub, &dbus_data);
     if (gimbal_motors_sub) SubGetMessage(gimbal_motors_sub,&gimbal_motors_data);
     if (shoot_motors_sub) SubGetMessage(shoot_motors_sub,&shoot_motors_data);
     if (imu_sub)      SubGetMessage(imu_sub,&imu_data);
-
-    System_State_Report_Remote(vt13_data.offline.is_online);//向系统状态模块传入遥控器在线状态
-
+    //增加dbus/VT13或其他遥控在这里
+    System_State_Report_Remote((vt13_data.offline.is_online)||(dbus_data.offline.is_online));//vt13向系统状态模块传入遥控器在线状态
     if (cmd_sys_state.error.bit.remote_lost)
     {
         Cmd_Handle_Safe_Mode();
     }
-    else if (vt13_data.Ctrl_Mode == 1) {
+    else if (vt13_data.Ctrl_Mode == 1||dbus_data.Ctrl_Mode == 1) {
         Cmd_Update_Mouse_Key();
     }
     else {
@@ -128,19 +131,19 @@ static void Cmd_Handle_Safe_Mode(void)
 static void Cmd_Update_Remote_Ctrl(void)
 {
     // 底盘
-    chassis_cmd.target_vx = (float)vt13_data.Remote.Channel [1] * RC_ROCKER_XY_COEF;
-    chassis_cmd.target_vy = -(float)vt13_data.Remote.Channel[0] * RC_ROCKER_XY_COEF;
-    chassis_cmd.target_vw =-(float)vt13_data.Remote.wheel * RC_ROCKER_VW_COEF;
+    chassis_cmd.target_vx = (float)(vt13_data.Remote .Channel [1]+dbus_data  .Remote.CH1  )* RC_ROCKER_XY_COEF;
+    chassis_cmd.target_vy = -(float)(vt13_data.Remote.Channel[0] +dbus_data  .Remote.CH0  )* RC_ROCKER_XY_COEF;
+    chassis_cmd.target_vw =-(float)(vt13_data.Remote.wheel +dbus_data.Remote.Dial )* RC_ROCKER_VW_COEF;
     //云台
     gimbal_cmd.mode = GIMBAL_CMD_MANUAL;
-    gimbal_cmd.target_yaw_rate = -(float)vt13_data.Remote.Channel [3]*RC_YAW_COEF;
+    gimbal_cmd.target_yaw_rate = -(float)(vt13_data.Remote.Channel [3] +dbus_data.Remote.CH3)*RC_YAW_COEF;
     gimbal_cmd.target_yaw += gimbal_cmd.target_yaw_rate;
     gimbal_cmd.target_yaw = normalize_to_pi(gimbal_cmd.target_yaw * DEG2RAD) * RAD2DEG;
 
-    gimbal_cmd.target_pitch_rate = (float)vt13_data.Remote.Channel [2]*RC_PITCH_COEF;
+    gimbal_cmd.target_pitch_rate = (float)(vt13_data.Remote.Channel [2]+dbus_data.Remote.CH2)*RC_PITCH_COEF;
     gimbal_cmd.target_pitch += gimbal_cmd.target_pitch_rate;
     gimbal_cmd.target_pitch = MATH_Limit_float(31.0f,-13.0f,gimbal_cmd.target_pitch);
-    if (vt13_data.Remote.mode_sw == 2) {
+    if (vt13_data.Remote.mode_sw == 2||dbus_data.Remote.S1 == 2) {
         gimbal_cmd.mode = GIMBAL_CMD_AUTO_AIM;
         gimbal_cmd.target_yaw_rate =0;
         gimbal_cmd.target_yaw +=0;
@@ -156,16 +159,18 @@ static void Cmd_Update_Remote_Ctrl(void)
     shoot_cmd.heat_max = b2b_rx_data.bits.heat_large;
     shoot_cmd.heat_now = b2b_rx_data.bits.heat_last;
     shoot_cmd.cool = b2b_rx_data.bits.cooling;
-    shoot_cmd.trigger_single = (vt13_data.Remote.fn_1==1 && shoot_cmd.last_fn1==0);
-    shoot_cmd.trigger_auto   = (vt13_data.Remote.fn_2==1||vt13_data.Remote.trigger==1);
-    if (vt13_data.Remote.mode_sw != 0) {
+    shoot_cmd.trigger_single = ((vt13_data.Remote.fn_1==1 && shoot_cmd.last_fn1==0)||(dbus_data.Remote.S2==2&&shoot_cmd.last_fn1==3));
+    shoot_cmd.trigger_auto   = (vt13_data.Remote.fn_2==1||vt13_data.Remote.trigger==1||dbus_data.Remote.S2==1);
+    if (vt13_data.Remote.mode_sw == 1||vt13_data.Remote.mode_sw == 2
+        ||dbus_data.Remote.S1 == 2||dbus_data.Remote.S1 == 3)
+    {
         shoot_cmd.mode = SHOOT_CMD_RUN;
         if (shoot_cmd.trigger_single || shoot_cmd.trigger_auto)
         {
             shoot_cmd.mode = SHOOT_CMD_FIRE;
         }
     }
-    shoot_cmd.last_fn1 = vt13_data.Remote.fn_1;
+    shoot_cmd.last_fn1 = vt13_data.Remote.fn_1+dbus_data.Remote.S2;
 }
 
 /**
@@ -175,7 +180,7 @@ static void Cmd_Update_Mouse_Key(void)
 {
     chassis_cmd.target_vx = (float)(vt13_data.KeyBoard.W - vt13_data.KeyBoard.S)* KB_WASD_COEF;
     chassis_cmd.target_vy = (float)(vt13_data.KeyBoard.D - vt13_data.KeyBoard.A)* KB_WASD_COEF;
-    chassis_cmd.target_vw = (float)(-vt13_data.KeyBoard.Shift *KB_VW_COEF);
+    chassis_cmd.target_vw = (float)(-(vt13_data.KeyBoard.Shift )*KB_VW_COEF);
     gimbal_cmd.target_yaw   -=(float)(vt13_data.KeyBoard.E- vt13_data.KeyBoard.Q ) * KB_YAW_COEF+(vt13_data.Mouse.X_Flt)*MOUSE_YAW_COEF;
     gimbal_cmd.target_pitch -=(float)(vt13_data.Mouse.Y_Flt *MOUSE_PITCH_COEF) ;
 
@@ -208,9 +213,9 @@ static void Cmd_DualBoard_Sync(void)
     uint8_t k_v       = vt13_data.KeyBoard.V      & 0x01;
     uint8_t k_shift   = vt13_data.KeyBoard.Shift  & 0x01;
     uint8_t k_ctrl    = vt13_data.KeyBoard.Ctrl   & 0x01;
-    uint8_t rc_online = vt13_data.offline.is_online & 0x03;
-    uint8_t rc_s1     = vt13_data.Remote.fn_1     & 0x03;
-    uint8_t rc_s2     = vt13_data.Remote.fn_2     & 0x03;
+    uint8_t rc_online = (vt13_data.offline.is_online+dbus_data.offline.is_online) & 0x03;
+    uint8_t rc_s1     = (vt13_data.Remote.fn_1 +dbus_data.Remote.S1)    & 0x03;
+    uint8_t rc_s2     = (vt13_data.Remote.fn_2 +dbus_data.Remote.S2)   & 0x03;
     uint8_t f_wheel   = Is_Group_Online(SHOOT)    & 0x01;
     uint8_t g_lixian  = Is_Group_Online(GIMBAL)   & 0x01;
     uint8_t v_look    = 0 & 0x01;
